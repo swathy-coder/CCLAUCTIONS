@@ -260,6 +260,18 @@ export default function AudienceView({
 
   const soldPlayersList = soldPlayers;
 
+  // Compute unsold players list (filter out those that were sold later)
+  const unsoldPlayersList = auctionLog.filter(log => {
+    if (log.status !== 'Unsold') return false;
+    // Check if this player was sold in a later round
+    const wasSoldLater = auctionLog.some(l => 
+      l.playerName === log.playerName && 
+      l.status === 'Sold' && 
+      l.round > log.round
+    );
+    return !wasSoldLater;
+  });
+
   return (
     <>
       <style>{`
@@ -996,12 +1008,7 @@ export default function AudienceView({
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}>
-            {auctionLog.filter(log => {
-              // Only show unsold if player hasn't been sold in a later round
-              const playerSoldLogs = auctionLog.filter(l => l.playerName === log.playerName && l.status === 'Sold');
-              const isPlayerSoldLater = playerSoldLogs.some(l => l.round > log.round);
-              return log.status === 'Unsold' && !isPlayerSoldLater;
-            }).reverse().slice(0, 20).map((log, idx) => {
+            {unsoldPlayersList.reverse().slice(0, 20).map((log, idx) => {
               return (
                 <div key={idx} style={{
                   background: 'rgba(255, 152, 0, 0.15)',
@@ -1029,7 +1036,7 @@ export default function AudienceView({
               );
             })}
           </div>
-          {auctionLog.filter(log => log.status === 'Unsold').length === 0 && (
+          {unsoldPlayersList.length === 0 && (
             <div style={{ textAlign: 'center', padding: 'clamp(1.5rem, 4vw, 2rem)', color: '#666', fontSize: 'clamp(1rem, 2.5vw, 1.2rem)' }}>
               No unsold players yet
             </div>
