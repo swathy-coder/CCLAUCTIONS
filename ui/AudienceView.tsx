@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './AudienceView.css';
 import type { Player, Team } from './AuctionScreen';
 import { subscribeToAuctionUpdates } from '../src/firebase';
+import LogoImage from '../LOGO 2.png';
 
 type AuctionLogEntry = {
   round: number;
@@ -354,6 +355,16 @@ export default function AudienceView({
           maxWidth: '100%',
           margin: '0 auto 0.5rem auto',
         }}>
+          <img 
+            src={LogoImage} 
+            alt="CCL Logo" 
+            style={{
+              height: '80px',
+              width: 'auto',
+              objectFit: 'contain',
+              marginRight: '0.5rem',
+            }}
+          />
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: '2.5rem', fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(25, 118, 210, 0.5)' }}>
               🏏 AUCTION LIVE
@@ -918,17 +929,18 @@ export default function AudienceView({
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}>
-            {soldPlayersList.slice(0, 20).map((log, idx) => {
+            {[...soldPlayersList].reverse().slice(0, 20).map((log, idx) => {
               const amount = typeof log.amount === 'number' ? log.amount : 0;
               console.log('Sold player amount:', log.playerName, amount);
               // Unit conversion: 1000 units = ₹1Cr, 100 units = ₹10L
               const displayAmount = amount >= 1000 
                 ? `₹${(amount / 1000).toFixed(2)} Cr` 
                 : `₹${(amount / 10).toFixed(1)} L`;
+              const isBluePlayer = log.category && log.category.toLowerCase() === 'blue';
               return (
                 <div key={idx} style={{
-                  background: 'rgba(76, 175, 80, 0.15)',
-                  border: '1px solid rgba(76, 175, 80, 0.3)',
+                  background: isBluePlayer ? 'rgba(25, 118, 210, 0.15)' : 'rgba(211, 47, 47, 0.15)',
+                  border: isBluePlayer ? '1px solid rgba(25, 118, 210, 0.3)' : '1px solid rgba(211, 47, 47, 0.3)',
                   padding: 'clamp(0.75rem, 2vw, 1rem)',
                   borderRadius: '0.8rem',
                   display: 'flex',
@@ -937,7 +949,17 @@ export default function AudienceView({
                   minHeight: '140px',
                   justifyContent: 'flex-start',
                 }}>
-                  <div style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', fontWeight: 700, color: '#fff', lineHeight: '1.3', wordBreak: 'break-word' }}>{log.playerName}</div>
+                  <div style={{ 
+                    fontSize: 'clamp(0.9rem, 2vw, 1rem)', 
+                    fontWeight: 700, 
+                    color: '#fff', 
+                    lineHeight: '1.3', 
+                    wordBreak: 'break-word',
+                    paddingBottom: '0.5rem',
+                    borderBottom: isBluePlayer ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
+                  }}>
+                    {isBluePlayer ? '🔵' : '🔴'} {log.playerName}
+                  </div>
                   <div style={{ fontSize: 'clamp(0.85rem, 2vw, 1rem)', color: '#90caf9', lineHeight: '1.3' }}>To: <b>{log.team}</b></div>
                   <div style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.3rem)', fontWeight: 900, color: '#81c784', marginTop: 'auto', paddingTop: '0.5rem' }}>{displayAmount}</div>
                   <div style={{ fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)', color: '#999' }}>Round {log.round}</div>
@@ -974,7 +996,12 @@ export default function AudienceView({
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}>
-            {auctionLog.filter(log => log.status === 'Unsold').map((log, idx) => {
+            {auctionLog.filter(log => {
+              // Only show unsold if player hasn't been sold in a later round
+              const playerSoldLogs = auctionLog.filter(l => l.playerName === log.playerName && l.status === 'Sold');
+              const isPlayerSoldLater = playerSoldLogs.some(l => l.round > log.round);
+              return log.status === 'Unsold' && !isPlayerSoldLater;
+            }).reverse().slice(0, 20).map((log, idx) => {
               return (
                 <div key={idx} style={{
                   background: 'rgba(255, 152, 0, 0.15)',
@@ -987,7 +1014,15 @@ export default function AudienceView({
                   minHeight: '140px',
                   justifyContent: 'flex-start',
                 }}>
-                  <div style={{ fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', fontWeight: 700, color: '#fff', lineHeight: '1.3', wordBreak: 'break-word' }}>{log.playerName}</div>
+                  <div style={{ 
+                    fontSize: 'clamp(0.9rem, 2vw, 1rem)', 
+                    fontWeight: 700, 
+                    color: '#fff', 
+                    lineHeight: '1.3', 
+                    wordBreak: 'break-word',
+                    paddingBottom: '0.5rem',
+                    borderBottom: '2px solid rgba(255, 152, 0, 0.5)',
+                  }}>⏳ {log.playerName}</div>
                   <div style={{ fontSize: 'clamp(0.85rem, 2vw, 1rem)', color: '#ffb74d', lineHeight: '1.3' }}>Attempt: <b>{log.attempt}</b></div>
                   <div style={{ fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)', color: '#999', marginTop: 'auto' }}>Round {log.round}</div>
                 </div>
