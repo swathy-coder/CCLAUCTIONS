@@ -17,6 +17,9 @@ interface SetupData {
   defaultBalance: number;
   resumeData?: ResumeData;
   auctionId: string;
+  minPlayersPerTeam?: number;
+  maxPlayersPerTeam?: number;
+  blueCapPercent?: number;
 }
 
 // Clean up old auction data on app startup to prevent localStorage quota errors
@@ -176,6 +179,9 @@ function App() {
             defaultBalance: data.defaultBalance || 0,
             resumeData,
             auctionId: recoveredAuctionId,
+            minPlayersPerTeam: data.minPlayersPerTeam,
+            maxPlayersPerTeam: data.maxPlayersPerTeam,
+            blueCapPercent: data.blueCapPercent,
           });
           
           // Store auction ID for audience view

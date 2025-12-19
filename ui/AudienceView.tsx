@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AudienceView.css';
 import type { Player, Team } from './AuctionScreen';
-import { subscribeToAuctionUpdates } from '../src/firebase';
+import { subscribeToAuctionUpdates, loadAuctionStateOnline } from '../src/firebase';
 import LogoImage from '../LOGO 2.png';
 
 type AuctionLogEntry = {
@@ -127,9 +127,7 @@ export default function AudienceView({
           if (stored) {
             const data = JSON.parse(stored);
             setLiveData(data);
-            console.log('📡 AudienceView polled - got', data.auctionLog?.length || 0, 'log entries, currentPlayer:', data.currentPlayer?.name);
-          } else {
-            console.log('📡 AudienceView polled - no data in localStorage for', effectiveAuctionId);
+            console.log('📡 AudienceView polled localStorage - got', data.auctionLog?.length || 0, 'log entries, currentPlayer:', data.currentPlayer?.name);
           }
         } catch (e) {
           console.error('AudienceView poll error:', e);
@@ -137,6 +135,25 @@ export default function AudienceView({
       }, 200); // Poll every 200ms for responsive updates
 
       return () => clearInterval(pollInterval);
+    }
+  }, [effectiveAuctionId]);
+
+  // Poll Firebase for updates (for cross-device sync when localStorage is stale)
+  useEffect(() => {
+    if (effectiveAuctionId) {
+      const firebasePollInterval = setInterval(async () => {
+        try {
+          const data = await loadAuctionStateOnline(effectiveAuctionId);
+          if (data) {
+            console.log('🔥 AudienceView polled Firebase - got', (data as any)?.auctionLog?.length || 0, 'log entries');
+            setLiveData(data as typeof liveData);
+          }
+        } catch (e) {
+          // Silently fail - Firebase polling is backup
+        }
+      }, 1000); // Poll Firebase every 1 second for less bandwidth
+
+      return () => clearInterval(firebasePollInterval);
     }
   }, [effectiveAuctionId]);
   
