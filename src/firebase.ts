@@ -48,42 +48,57 @@ export function setAuctionIdInUrl(auctionId: string) {
   window.history.replaceState({}, '', url.toString());
 }
 
-// Helper function to strip base64 photos from state to reduce Firebase data size
-// We keep ONLY the currentPlayer photo (for audience view display)
-// Photos are ~600KB each, 80 players = 48MB which exceeds Firebase 16MB limit
+// Helper to check if a photo is a URL (keep it) or base64 (strip it)
+function isPhotoUrl(photo: unknown): boolean {
+  if (typeof photo !== 'string') return false;
+  return photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('/');
+}
+
+// Helper function to strip ONLY base64 photos from state to reduce Firebase data size
+// URL photos are tiny (~100 bytes) and should be KEPT for cross-device resume
+// Base64 photos are huge (~600KB each) and must be stripped
 function stripPhotosFromState(state: unknown): unknown {
   if (typeof state !== 'object' || state === null) return state;
   
   const stateCopy = { ...state } as Record<string, unknown>;
   
-  // KEEP currentPlayer photo (audience view needs it to display the current player)
-  // currentPlayer is already a separate object, so its photo is preserved
+  // Helper to conditionally strip photo (keep URLs, strip base64)
+  const stripBase64Photo = (player: Record<string, unknown>): Record<string, unknown> => {
+    if (isPhotoUrl(player.photo)) {
+      // Keep URL photos - they're tiny and needed for cross-device resume
+      return player;
+    } else {
+      // Strip base64 photos - they're huge
+      const copy = { ...player };
+      delete copy.photo;
+      return copy;
+    }
+  };
   
-  // Strip photos from soldPlayers array
+  // KEEP currentPlayer photo (audience view needs it)
+  // But if it's base64, we might need to handle it separately
+  
+  // Process soldPlayers array - strip base64, keep URLs
   if (Array.isArray(stateCopy.soldPlayers)) {
     stateCopy.soldPlayers = stateCopy.soldPlayers.map((p: unknown) => {
       if (typeof p === 'object' && p !== null) {
-        const playerCopy = { ...p } as Record<string, unknown>;
-        delete playerCopy.photo;
-        return playerCopy;
+        return stripBase64Photo(p as Record<string, unknown>);
       }
       return p;
     });
   }
   
-  // Strip photos from players array (this is the big one - 80 players × ~600KB each)
+  // Process players array - strip base64, keep URLs
   if (Array.isArray(stateCopy.players)) {
     stateCopy.players = stateCopy.players.map((p: unknown) => {
       if (typeof p === 'object' && p !== null) {
-        const playerCopy = { ...p } as Record<string, unknown>;
-        delete playerCopy.photo;
-        return playerCopy;
+        return stripBase64Photo(p as Record<string, unknown>);
       }
       return p;
     });
   }
   
-  // Strip photos from teamRosterData if it contains player objects with photos
+  // Process teamRosterData - strip base64, keep URLs
   if (stateCopy.teamRosterData && typeof stateCopy.teamRosterData === 'object') {
     const rosterCopy = { ...stateCopy.teamRosterData } as Record<string, unknown>;
     for (const teamName of Object.keys(rosterCopy)) {
@@ -92,9 +107,7 @@ function stripPhotosFromState(state: unknown): unknown {
         const teamDataCopy = { ...teamData } as Record<string, unknown>;
         teamDataCopy.players = ((teamData as any).players as unknown[]).map((p: unknown) => {
           if (typeof p === 'object' && p !== null) {
-            const playerCopy = { ...p } as Record<string, unknown>;
-            delete playerCopy.photo;
-            return playerCopy;
+            return stripBase64Photo(p as Record<string, unknown>);
           }
           return p;
         });
@@ -102,6 +115,11 @@ function stripPhotosFromState(state: unknown): unknown {
       }
     }
     stateCopy.teamRosterData = rosterCopy;
+  }
+  
+  // Also handle currentPlayer - keep URL, strip base64
+  if (stateCopy.currentPlayer && typeof stateCopy.currentPlayer === 'object') {
+    stateCopy.currentPlayer = stripBase64Photo(stateCopy.currentPlayer as Record<string, unknown>);
   }
   
   return stateCopy;
