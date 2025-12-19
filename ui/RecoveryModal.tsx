@@ -21,6 +21,10 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
   const [manualAuctionId, setManualAuctionId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  
+  // Photo loading options for resume
+  const [photoSource, setPhotoSource] = useState<'online' | 'none'>('online');
+  const [onlinePhotoUrl, setOnlinePhotoUrl] = useState('https://cclauctions.pages.dev/player-photos');
 
   useEffect(() => {
     const loadAuctions = async () => {
@@ -105,6 +109,53 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
     loadAuctions();
   }, []);
 
+  // Helper to load photos for players from online URL
+  const loadPhotosForPlayers = async (players: any[]): Promise<any[]> => {
+    if (photoSource !== 'online' || !onlinePhotoUrl) {
+      return players;
+    }
+    
+    console.log('📷 Loading photos from:', onlinePhotoUrl);
+    const extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
+    
+    const tryLoadImage = (playerId: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        let attempts = 0;
+        const tryNext = () => {
+          if (attempts >= extensions.length) {
+            resolve(null);
+            return;
+          }
+          const ext = extensions[attempts];
+          const url = `${onlinePhotoUrl}/${playerId}.${ext}`;
+          const img = new Image();
+          img.onload = () => resolve(url);
+          img.onerror = () => {
+            attempts++;
+            tryNext();
+          };
+          img.src = url;
+        };
+        tryNext();
+      });
+    };
+    
+    const updatedPlayers = await Promise.all(
+      players.map(async (player: any) => {
+        // Skip if already has a URL photo
+        if (player.photo && (player.photo.startsWith('http') || player.photo.startsWith('/'))) {
+          return player;
+        }
+        const photoUrl = await tryLoadImage(player.id);
+        return photoUrl ? { ...player, photo: photoUrl } : player;
+      })
+    );
+    
+    const withPhotos = updatedPlayers.filter(p => p.photo).length;
+    console.log(`📷 Loaded ${withPhotos}/${players.length} photos`);
+    return updatedPlayers;
+  };
+
   const handleResume = async () => {
     // Use manual ID if provided, otherwise use selected from list
     const auctionIdToResume = manualAuctionId.trim() || selectedId;
@@ -120,20 +171,29 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
     try {
       // Try to load from Firebase first
       console.log('📡 Fetching auction from Firebase:', auctionIdToResume);
-      const firebaseData = await loadAuctionStateOnline(auctionIdToResume);
+      let auctionData = await loadAuctionStateOnline(auctionIdToResume);
       
-      if (firebaseData) {
-        console.log('✅ Loaded from Firebase:', firebaseData);
-        onResume(firebaseData);
-        return;
+      if (!auctionData) {
+        // Fallback to localStorage
+        console.log('⚠️ Firebase unavailable, loading from localStorage');
+        auctionData = loadAuctionState(auctionIdToResume);
       }
-
-      // Fallback to localStorage
-      console.log('⚠️ Firebase unavailable, loading from localStorage');
-      const localData = loadAuctionState(auctionIdToResume);
-      if (localData) {
-        console.log('✅ Loaded from localStorage:', localData);
-        onResume(localData);
+      
+      if (auctionData) {
+        console.log('✅ Loaded auction data');
+        
+        // Load photos if needed
+        const data = auctionData as any;
+        if (data.players && Array.isArray(data.players)) {
+          console.log('📷 Checking if photos need to be loaded...');
+          data.players = await loadPhotosForPlayers(data.players);
+        } else if (data.players && typeof data.players === 'object') {
+          // Firebase might convert array to object
+          const playersArray = Object.values(data.players);
+          data.players = await loadPhotosForPlayers(playersArray);
+        }
+        
+        onResume(data);
         return;
       }
 
@@ -338,6 +398,71 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
               }
             }}
           />
+        </div>
+
+        {/* Photo Source Section */}
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            padding: '1rem',
+            background: 'rgba(25, 118, 210, 0.1)',
+            borderRadius: '0.8rem',
+            border: '1px solid rgba(25, 118, 210, 0.3)',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              color: '#1e88e5',
+              marginBottom: '0.8rem',
+              fontWeight: 600,
+            }}
+          >
+            📸 Player Photos:
+          </label>
+          
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.8rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ccc', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                checked={photoSource === 'online'}
+                onChange={() => setPhotoSource('online')}
+              />
+              <span>Load from online URL</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ccc', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                checked={photoSource === 'none'}
+                onChange={() => setPhotoSource('none')}
+              />
+              <span>No photos</span>
+            </label>
+          </div>
+          
+          {photoSource === 'online' && (
+            <input
+              type="text"
+              value={onlinePhotoUrl}
+              onChange={(e) => setOnlinePhotoUrl(e.target.value)}
+              placeholder="Photo base URL"
+              style={{
+                width: '100%',
+                padding: '0.6rem',
+                background: 'rgba(0, 0, 0, 0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '0.5rem',
+                color: '#fff',
+                fontSize: '0.85rem',
+                boxSizing: 'border-box',
+              }}
+            />
+          )}
+          
+          <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
+            Photos will be fetched as: {onlinePhotoUrl}/[playerId].jpg
+          </div>
         </div>
 
         {error && (
