@@ -105,18 +105,70 @@ function App() {
       <RecoveryModal
         onResume={(auctionData) => {
           console.log('✅ Resuming auction:', auctionData);
+          const data = auctionData as any;
+          
+          // Get auction ID from the recovered data
+          const recoveredAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
+          
+          // Convert auctionLog format to ResumeData format
+          let playerSequence: string[] = [];
+          let balances: Record<string, {balance: number; acquired: number}> = {};
+          
+          // Reconstruct sequence from auction log and current state
+          if (data.players && Array.isArray(data.players)) {
+            playerSequence = data.players.map((p: any) => p.name);
+          }
+          
+          // Build balances from teamBalances
+          if (data.teamBalances && Array.isArray(data.teamBalances)) {
+            data.teamBalances.forEach((team: any) => {
+              balances[team.name] = {
+                balance: team.balance,
+                acquired: team.acquired || 0
+              };
+            });
+          }
+          
+          // Convert auctionLog entries to expected format
+          const resumeLog = (data.auctionLog || []).map((entry: any) => ({
+            round: entry.round || 1,
+            attempt: entry.attempt || 1,
+            timestamp: entry.timestamp || new Date().toISOString(),
+            playerName: entry.playerName || '',
+            team: entry.team || '',
+            amount: entry.amount || '',
+            status: entry.status || 'Unsold',
+            category: entry.category,
+            notes: entry.notes
+          }));
+          
+          // Create proper resumeData structure
+          const resumeData: ResumeData = {
+            round: data.round || 1,
+            playerIdx: data.playerIdx || 0,
+            sequence: playerSequence,
+            balances,
+            log: resumeLog
+          };
+          
+          console.log('📊 Converted resumeData:', resumeData);
+          
           // Convert recovered data to setup format
           setSetup({
-            tournament: (auctionData as any).tournament || 'Recovered Auction',
-            players: (auctionData as any).players || [],
-            teams: (auctionData as any).teams || [],
+            tournament: data.tournament || 'Recovered Auction',
+            players: data.players || [],
+            teams: data.teams || [],
             bidLog: [],
             playerImages: {},
             teamLogos: {},
-            defaultBalance: (auctionData as any).defaultBalance || 0,
-            resumeData: auctionData as ResumeData,
-            auctionId: (auctionData as any).auctionId || '',
+            defaultBalance: data.defaultBalance || 0,
+            resumeData,
+            auctionId: recoveredAuctionId,
           });
+          
+          // Store auction ID for audience view
+          localStorage.setItem('current_auction_id', recoveredAuctionId);
+          
           setShowRecovery(false);
         }}
         onCancel={() => {

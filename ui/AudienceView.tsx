@@ -35,7 +35,9 @@ export default function AudienceView({
 }: AudienceViewProps) {
   const urlParams = new URLSearchParams(window.location.search);
   const isStandaloneView = urlParams.get('audienceView') === 'true';
-  console.log('AudienceView rendered. isStandaloneView:', isStandaloneView, 'auctionId:', auctionId);
+  // Get auctionId from URL first, then props, then localStorage fallback
+  const effectiveAuctionId = urlParams.get('auction') || auctionId || localStorage.getItem('current_auction_id');
+  console.log('AudienceView rendered. isStandaloneView:', isStandaloneView, 'effectiveAuctionId:', effectiveAuctionId);
   
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -75,18 +77,18 @@ export default function AudienceView({
 
   // Subscribe to real-time Firebase updates when in standalone mode
   useEffect(() => {
-    if (isStandaloneView && auctionId) {
-      console.log('Subscribing to auction updates for:', auctionId);
+    if (isStandaloneView && effectiveAuctionId) {
+      console.log('Subscribing to auction updates for:', effectiveAuctionId);
       
       // Subscribe to real-time updates from Firebase
-      const unsubscribe = subscribeToAuctionUpdates(auctionId, (data) => {
+      const unsubscribe = subscribeToAuctionUpdates(effectiveAuctionId, (data) => {
         console.log('Received auction update:', data);
         setLiveData(data as typeof liveData);
       });
       
       // Also load from localStorage immediately as fallback
       try {
-        const stored = localStorage.getItem(`auction_${auctionId}`);
+        const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
         if (stored) {
           const data = JSON.parse(stored);
           setLiveData(data);
@@ -98,7 +100,7 @@ export default function AudienceView({
       // Cleanup subscription on unmount
       return unsubscribe;
     }
-  }, [isStandaloneView, auctionId]);
+  }, [isStandaloneView, effectiveAuctionId]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -107,16 +109,16 @@ export default function AudienceView({
 
   // Poll localStorage for updates (for more frequent updates than Firebase)
   useEffect(() => {
-    if (isStandaloneView && auctionId) {
+    if (isStandaloneView && effectiveAuctionId) {
       const pollInterval = setInterval(() => {
         try {
-          const stored = localStorage.getItem(`auction_${auctionId}`);
+          const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
           if (stored) {
             const data = JSON.parse(stored);
             setLiveData(data);
             console.log('📡 AudienceView polled - got', data.auctionLog?.length || 0, 'log entries, currentPlayer:', data.currentPlayer?.name);
           } else {
-            console.log('📡 AudienceView polled - no data in localStorage for', auctionId);
+            console.log('📡 AudienceView polled - no data in localStorage for', effectiveAuctionId);
           }
         } catch (e) {
           console.error('AudienceView poll error:', e);
@@ -125,7 +127,7 @@ export default function AudienceView({
 
       return () => clearInterval(pollInterval);
     }
-  }, [isStandaloneView, auctionId]);
+  }, [isStandaloneView, effectiveAuctionId]);
   
   // Use live data if available, otherwise use props
   const currentPlayer = liveData?.currentPlayer ?? propCurrentPlayer;

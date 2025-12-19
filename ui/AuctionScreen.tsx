@@ -327,6 +327,22 @@ function AuctionScreen({
   const audienceWindowRef = useRef<Window | null>(null);
   const resumedRef = useRef(!!resumeData);
 
+  // Set auction ID in URL and localStorage on mount
+  useEffect(() => {
+    if (auctionId) {
+      // Update URL with auction ID if not already there
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('auction')) {
+        url.searchParams.set('auction', auctionId);
+        window.history.replaceState({}, '', url.toString());
+      }
+      
+      // Store current auction ID for audience view
+      localStorage.setItem('current_auction_id', auctionId);
+      console.log('✅ Set auction ID in URL and localStorage:', auctionId);
+    }
+  }, [auctionId]);
+
   // Auto-skip blue players when all teams are at blue cap in round 1
   useEffect(() => {
     const player = orderedPlayers[playerIdx];
@@ -480,6 +496,7 @@ function AuctionScreen({
     });
     
     const auctionState = {
+      auctionId, // Include auction ID for recovery
       currentPlayer: orderedPlayers[playerIdx] || null,
       soldPlayers: auctionLog.filter(l => l.status === 'Sold'),
       teams: teamBalances,
@@ -495,6 +512,7 @@ function AuctionScreen({
       soldAmount: lastSoldAmount,
       blueCapPercent,
       players: orderedPlayers,
+      playerIdx, // Include player index for recovery
     };
     
     console.log('💾 Syncing auction state - auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name);
