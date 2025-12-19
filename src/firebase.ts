@@ -48,30 +48,61 @@ export function setAuctionIdInUrl(auctionId: string) {
   window.history.replaceState({}, '', url.toString());
 }
 
-// Helper function to strip base64 photos from SOLD players only to reduce size
-// Keep current player photo for audience view and keep photos in players array
+// Helper function to strip base64 photos from state to reduce Firebase data size
+// We keep ONLY the currentPlayer photo (for audience view display)
+// Photos are ~600KB each, 80 players = 48MB which exceeds Firebase 16MB limit
 function stripPhotosFromState(state: unknown): unknown {
   if (typeof state !== 'object' || state === null) return state;
   
   const stateCopy = { ...state } as Record<string, unknown>;
   
-  // KEEP currentPlayer photo (audience view needs it to display)
-  // KEEP photos in players array (needed for next player display)
-  // Only strip photos from soldPlayers array to save space
+  // KEEP currentPlayer photo (audience view needs it to display the current player)
+  // currentPlayer is already a separate object, so its photo is preserved
   
+  // Strip photos from soldPlayers array
   if (Array.isArray(stateCopy.soldPlayers)) {
     stateCopy.soldPlayers = stateCopy.soldPlayers.map((p: unknown) => {
       if (typeof p === 'object' && p !== null) {
         const playerCopy = { ...p } as Record<string, unknown>;
-        delete playerCopy.photo; // Remove photo from sold players only
+        delete playerCopy.photo;
         return playerCopy;
       }
       return p;
     });
   }
   
-  // DO NOT strip photos from players array - keep them for display
-  // DO NOT strip photo from currentPlayer - audience view needs it
+  // Strip photos from players array (this is the big one - 80 players × ~600KB each)
+  if (Array.isArray(stateCopy.players)) {
+    stateCopy.players = stateCopy.players.map((p: unknown) => {
+      if (typeof p === 'object' && p !== null) {
+        const playerCopy = { ...p } as Record<string, unknown>;
+        delete playerCopy.photo;
+        return playerCopy;
+      }
+      return p;
+    });
+  }
+  
+  // Strip photos from teamRosterData if it contains player objects with photos
+  if (stateCopy.teamRosterData && typeof stateCopy.teamRosterData === 'object') {
+    const rosterCopy = { ...stateCopy.teamRosterData } as Record<string, unknown>;
+    for (const teamName of Object.keys(rosterCopy)) {
+      const teamData = rosterCopy[teamName];
+      if (teamData && typeof teamData === 'object' && Array.isArray((teamData as any).players)) {
+        const teamDataCopy = { ...teamData } as Record<string, unknown>;
+        teamDataCopy.players = ((teamData as any).players as unknown[]).map((p: unknown) => {
+          if (typeof p === 'object' && p !== null) {
+            const playerCopy = { ...p } as Record<string, unknown>;
+            delete playerCopy.photo;
+            return playerCopy;
+          }
+          return p;
+        });
+        rosterCopy[teamName] = teamDataCopy;
+      }
+    }
+    stateCopy.teamRosterData = rosterCopy;
+  }
   
   return stateCopy;
 }
