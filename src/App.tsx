@@ -3,6 +3,7 @@ import AuctionScreen from '../ui/AuctionScreen';
 import AuctionSetup from '../ui/AuctionSetup';
 import AudienceView from '../ui/AudienceView';
 import RecoveryModal from '../ui/RecoveryModal';
+import { saveAuctionStateOnline } from './firebase';
 import './App.css';
 
 import type { Player, Team, BidLog, ResumeData } from '../ui/AuctionSetup';
@@ -121,9 +122,16 @@ function App() {
           console.log('✅ Resuming auction from RecoveryModal:', auctionData);
           const data = auctionData as any;
           
-          // Get auction ID from the recovered data
-          const recoveredAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
-          console.log('🎯 Recovered auction ID:', recoveredAuctionId, 'auctionData has photos:', !!data?.currentPlayer?.photo);
+          // Get OLD auction ID from the recovered data
+          const oldAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
+          
+          // Generate NEW auction ID to ensure fresh Firebase subscription sync
+          // This solves the issue where Device 2 AudienceView doesn't update from Device 2 changes
+          const newAuctionId = Math.random().toString(36).substring(2, 10).toUpperCase();
+          
+          console.log('🔄 Resume: Old auctionId:', oldAuctionId, '→ New auctionId:', newAuctionId);
+          console.log('📝 Reason: Fresh ID ensures AudienceView subscribes to new Firebase path');
+          console.log('🎯 Data being migrated - auctionData has photos:', !!data?.currentPlayer?.photo);
           console.log('📋 Recovered auctionLog sample:', data?.auctionLog?.[0], 'total entries:', data?.auctionLog?.length);
           
           // Convert auctionLog format to ResumeData format
@@ -169,8 +177,8 @@ function App() {
           
           console.log('📊 Converted resumeData:', resumeData);
           
-          // Convert recovered data to setup format
-          setSetup({
+          // Convert recovered data to setup format using NEW auctionId
+          const setupData = {
             tournament: data.tournament || 'Recovered Auction',
             players: data.players || [],
             teams: data.teams || [],
@@ -179,14 +187,31 @@ function App() {
             teamLogos: {},
             defaultBalance: data.defaultBalance || 0,
             resumeData,
-            auctionId: recoveredAuctionId,
+            auctionId: newAuctionId,  // USE NEW ID - this is the key fix!
             minPlayersPerTeam: data.minPlayersPerTeam,
             maxPlayersPerTeam: data.maxPlayersPerTeam,
             blueCapPercent: data.blueCapPercent,
-          });
+          };
           
-          // Store auction ID for audience view
-          localStorage.setItem('current_auction_id', recoveredAuctionId);
+          setSetup(setupData);
+          
+          // Store NEW auction ID for audience view - this will be picked up by URL update effect
+          localStorage.setItem('current_auction_id', newAuctionId);
+          
+          // Copy all data from old Firebase path to new path so nothing is lost
+          if (oldAuctionId && oldAuctionId !== newAuctionId) {
+            console.log('📤 Copying auction data from', oldAuctionId, 'to', newAuctionId);
+            // Save the complete state to new Firebase path with new ID
+            const completeState = {
+              ...data,
+              auctionId: newAuctionId,
+              resumedFrom: oldAuctionId,
+              resumedAt: new Date().toISOString(),
+            };
+            saveAuctionStateOnline(newAuctionId, completeState)
+              .then(() => console.log('✅ Auction data successfully copied to Firebase with new ID:', newAuctionId))
+              .catch(err => console.warn('⚠️ Could not copy data to Firebase:', err));
+          }
           
           setShowRecovery(false);
         }}
