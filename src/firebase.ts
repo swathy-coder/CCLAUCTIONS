@@ -154,7 +154,7 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
       ...(typeof lightweightState === 'object' && lightweightState !== null ? lightweightState : {}),
       lastUpdated: Date.now(),
     });
-    console.log('✅ Auction state saved to Firebase:', auctionId);
+    console.log('✅ Auction state saved to Firebase:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
     
     // Also save to localStorage as backup (non-blocking, ignore errors)
     try {
@@ -165,9 +165,22 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
     }
   } catch (error) {
     console.error('❌ Failed to save auction state to Firebase:', error);
-    // Only show alert if Firebase fails (critical error)
-    if (String(error).includes('permission') || String(error).includes('network')) {
-      alert('Warning: Could not sync to Firebase. Check your internet connection or database permissions.');
+    
+    // Check for specific error types
+    const errorMsg = String(error);
+    if (errorMsg.includes('PERMISSION_DENIED')) {
+      console.error('🔐 Firebase Permission Denied - Check database rules');
+      alert('Firebase permission error. Please check Firebase database rules (should allow read/write in /auctions)');
+    } else if (errorMsg.includes('NETWORK_ERROR')) {
+      console.error('🌐 Firebase Network Error - Check internet connection');
+    }
+    
+    // Try localStorage as fallback
+    try {
+      saveAuctionState(auctionId, state);
+      console.log('✅ Saved to localStorage as Firebase fallback');
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
     }
   }
 }
@@ -186,6 +199,7 @@ export async function loadAuctionStateOnline(auctionId: string): Promise<unknown
       onValue(auctionRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
+          console.log('✅ Loaded from Firebase:', auctionId, '| Log entries:', data.auctionLog?.length || 0);
           // Try to save to localStorage for offline access (ignore errors)
           try {
             saveAuctionState(auctionId, data);
@@ -194,11 +208,16 @@ export async function loadAuctionStateOnline(auctionId: string): Promise<unknown
           }
           resolve(data);
         } else {
+          console.log('⚠️ No data in Firebase for:', auctionId, '- trying localStorage');
           // Fallback to localStorage if Firebase has no data
           resolve(loadAuctionState(auctionId));
         }
       }, (error) => {
-        console.error('Failed to load from Firebase:', error);
+        console.error('❌ Failed to load from Firebase:', error);
+        const errorMsg = String(error);
+        if (errorMsg.includes('PERMISSION_DENIED')) {
+          console.error('🔐 Firebase Permission Denied - Check database rules');
+        }
         // Fallback to localStorage on error
         resolve(loadAuctionState(auctionId));
       }, { onlyOnce: true });
