@@ -124,6 +124,7 @@ function App() {
           // Get auction ID from the recovered data
           const recoveredAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
           console.log('🎯 Recovered auction ID:', recoveredAuctionId, 'auctionData has photos:', !!data?.currentPlayer?.photo);
+          console.log('📋 Recovered auctionLog sample:', data?.auctionLog?.[0], 'total entries:', data?.auctionLog?.length);
           
           // Convert auctionLog format to ResumeData format
           let playerSequence: string[] = [];

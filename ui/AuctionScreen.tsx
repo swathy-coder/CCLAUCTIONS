@@ -377,7 +377,7 @@ function AuctionScreen({
 
   // Calculate blue spending per team for the blue cap rule
   const getBlueSpentByTeam = useCallback((teamName: string): number => {
-    return auctionLog
+    const blueSpent = auctionLog
       .filter(entry => {
         if (entry.status !== 'Sold' || entry.team !== teamName) return false;
         // Use category from log entry (for resume support) or fall back to player lookup
@@ -390,6 +390,14 @@ function AuctionScreen({
         return player && (player.category || '').toLowerCase() === 'blue';
       })
       .reduce((sum, entry) => sum + (typeof entry.amount === 'number' ? entry.amount : 0), 0);
+    
+    // Debug logging for blue cap calculation
+    if (teamName === 'Thunderbolts' && auctionLog.length > 0) {
+      const blueEntries = auctionLog.filter(e => e.team === teamName && e.status === 'Sold' && (e.category || '').toLowerCase() === 'blue');
+      console.log(`🔵 Thunderbolts blue spent: ${blueSpent} units | Blue entries: ${blueEntries.length} | Total log entries for Thunderbolts: ${auctionLog.filter(e => e.team === teamName).length}`);
+    }
+    
+    return blueSpent;
   }, [auctionLog, players]);
 
   // Get the original team purse (initial balance)
@@ -515,7 +523,7 @@ function AuctionScreen({
       playerIdx, // Include player index for recovery
     };
     
-    console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo);
+    console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo, 'Sample log entry:', auctionLog[0]);
     saveAuctionStateOnline(auctionId, auctionState);
     try {
       localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));
