@@ -515,7 +515,7 @@ function AuctionScreen({
       playerIdx, // Include player index for recovery
     };
     
-    console.log('💾 Syncing auction state - auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name);
+    console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo);
     saveAuctionStateOnline(auctionId, auctionState);
     try {
       localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));

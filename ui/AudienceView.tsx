@@ -78,11 +78,19 @@ export default function AudienceView({
   // Subscribe to real-time Firebase updates when in standalone mode OR when we have an auction ID
   useEffect(() => {
     if (effectiveAuctionId) {
-      console.log('Subscribing to auction updates for:', effectiveAuctionId, 'isStandaloneView:', isStandaloneView);
+      console.log('🔥 AudienceView: Subscribing to Firebase for:', effectiveAuctionId, 'isStandaloneView:', isStandaloneView);
+      
+      let updateCount = 0;
       
       // Subscribe to real-time updates from Firebase
       const unsubscribe = subscribeToAuctionUpdates(effectiveAuctionId, (data) => {
-        console.log('📡 Received Firebase update:', data);
+        updateCount++;
+        console.log(`🔥 AudienceView: Firebase update #${updateCount} received:`, {
+          currentPlayer: (data as any)?.currentPlayer?.name,
+          logEntries: (data as any)?.auctionLog?.length,
+          round: (data as any)?.round,
+          hasPhotos: !!(data as any)?.currentPlayer?.photo
+        });
         setLiveData(data as typeof liveData);
       });
       
@@ -91,8 +99,10 @@ export default function AudienceView({
         const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
         if (stored) {
           const data = JSON.parse(stored);
-          console.log('📡 Loaded from localStorage:', effectiveAuctionId);
+          console.log('📄 AudienceView: Loaded from localStorage:', effectiveAuctionId);
           setLiveData(data);
+        } else {
+          console.log('📄 AudienceView: No localStorage data for:', effectiveAuctionId);
         }
       } catch (e) {
         console.error('Failed to load from localStorage:', e);

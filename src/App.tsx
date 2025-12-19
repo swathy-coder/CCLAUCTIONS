@@ -115,11 +115,12 @@ function App() {
     return (
       <RecoveryModal
         onResume={(auctionData) => {
-          console.log('✅ Resuming auction:', auctionData);
+          console.log('✅ Resuming auction from RecoveryModal:', auctionData);
           const data = auctionData as any;
           
           // Get auction ID from the recovered data
           const recoveredAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
+          console.log('🎯 Recovered auction ID:', recoveredAuctionId, 'auctionData has photos:', !!data?.currentPlayer?.photo);
           
           // Convert auctionLog format to ResumeData format
           let playerSequence: string[] = [];
