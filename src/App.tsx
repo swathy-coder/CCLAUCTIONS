@@ -23,18 +23,49 @@ interface SetupData {
   blueCapPercent?: number;
 }
 
-// Clean up old auction data on app startup to prevent localStorage quota errors
+// App version - increment this to force cache clear on new deploys
+const APP_VERSION = '2.0.0';
+
+// Clean up old auction data on app startup to prevent localStorage quota errors and stale data
 const cleanupOldAuctions = () => {
   try {
+    // Check if app version changed - if so, clear everything
+    const storedVersion = localStorage.getItem('app_version');
+    if (storedVersion !== APP_VERSION) {
+      console.log(`🔄 App version changed: ${storedVersion} → ${APP_VERSION}. Clearing all cached data.`);
+      
+      // Clear all auction-related data
+      const keys = Object.keys(localStorage);
+      let cleaned = 0;
+      for (const key of keys) {
+        if (key.startsWith('auction_') || key.startsWith('auction_setup_')) {
+          localStorage.removeItem(key);
+          cleaned++;
+        }
+      }
+      
+      // Update version
+      localStorage.setItem('app_version', APP_VERSION);
+      
+      if (cleaned > 0) {
+        console.log(`🧹 Cleared ${cleaned} cached auction records due to version update`);
+      }
+      return;
+    }
+    
+    // Normal cleanup - remove old auctions except current one
+    const currentAuctionId = localStorage.getItem('current_auction_id');
     const keys = Object.keys(localStorage);
     let cleaned = 0;
+    
     for (const key of keys) {
-      // Keep only the last 2 auctions, remove all others
-      if (key.startsWith('auction_')) {
+      // Keep current auction, remove others
+      if (key.startsWith('auction_') && !key.includes(currentAuctionId || '___none___')) {
         localStorage.removeItem(key);
         cleaned++;
       }
     }
+    
     if (cleaned > 0) {
       console.log(`🧹 Cleaned up ${cleaned} old auction records from localStorage`);
     }
@@ -121,6 +152,22 @@ function App() {
         onResume={(auctionData) => {
           console.log('✅ Resuming auction from RecoveryModal:', auctionData);
           const data = auctionData as any;
+          
+          // IMPORTANT: Clear all old auction data from localStorage before resuming
+          // This prevents stale cached data from conflicting with fresh Firebase data
+          try {
+            const keys = Object.keys(localStorage);
+            let cleared = 0;
+            for (const key of keys) {
+              if (key.startsWith('auction_') || key.startsWith('auction_setup_')) {
+                localStorage.removeItem(key);
+                cleared++;
+              }
+            }
+            console.log(`🧹 Cleared ${cleared} cached auction records before resume`);
+          } catch (e) {
+            console.warn('Could not clear localStorage:', e);
+          }
           
           // Get OLD auction ID from the recovered data
           const oldAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
