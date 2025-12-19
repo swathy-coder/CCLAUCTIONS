@@ -85,11 +85,14 @@ export default function AudienceView({
       // Subscribe to real-time updates from Firebase
       const unsubscribe = subscribeToAuctionUpdates(effectiveAuctionId, (data) => {
         updateCount++;
-        console.log(`🔥 AudienceView: Firebase update #${updateCount} received:`, {
+        console.log(`🔥 AudienceView: Firebase subscription FIRED #${updateCount}:`, {
+          auctionId: effectiveAuctionId,
           currentPlayer: (data as any)?.currentPlayer?.name,
           logEntries: (data as any)?.auctionLog?.length,
+          lastEntry: (data as any)?.auctionLog?.[((data as any)?.auctionLog?.length || 0) - 1],
           round: (data as any)?.round,
-          hasPhotos: !!(data as any)?.currentPlayer?.photo
+          hasPhotos: !!(data as any)?.currentPlayer?.photo,
+          timestamp: new Date().toLocaleTimeString()
         });
         setLiveData(data as typeof liveData);
       });

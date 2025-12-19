@@ -91,9 +91,14 @@ function AuctionScreen({
   maxPlayersPerTeam = 12,
   blueCapPercent = 65
 }: AuctionScreenProps) {
-  console.log('AuctionScreen mounted with players:', players?.length, 'teams:', teams?.length, 'auctionId:', auctionId);
-  console.log('Players data:', players);
-  console.log('Teams data:', teams);
+  console.log('='.repeat(80));
+  console.log('🎬 AuctionScreen MOUNTED');
+  console.log('   auctionId:', auctionId);
+  console.log('   players:', players?.length);
+  console.log('   teams:', teams?.length);
+  console.log('   resumeData:', !!resumeData);
+  console.log('   Auction will sync to path: auctions/' + auctionId);
+  console.log('='.repeat(80));
   
   // Helper function to randomize array
   const randomizeArray = (arr: Player[]): Player[] => {
@@ -713,6 +718,8 @@ function AuctionScreen({
 
   // Handle SOLD
   const handleSold = async () => {
+    console.log(`\n📤 [handleSold] Selling ${currentPlayer.name} to ${selectedTeam} for ${bidUnits} units (auctionId: ${auctionId})`);
+    
     setShowSoldOverlay(true);
     const validation = validateBid();
     if (!validation.valid) {

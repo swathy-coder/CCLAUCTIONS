@@ -123,6 +123,12 @@ export function loadAuctionState(auctionId: string): unknown | null {
 
 // Save auction state to Firebase Realtime Database
 export async function saveAuctionStateOnline(auctionId: string, state: unknown): Promise<void> {
+  console.log(`📤 [saveAuctionStateOnline] Called with auctionId: ${auctionId}`);
+  console.log(`   State keys:`, Object.keys(state as any).join(', '));
+  console.log(`   Current player:`, (state as any)?.currentPlayer?.name);
+  console.log(`   Team balances count:`, (state as any)?.teamBalances?.length);
+  console.log(`   Auction log entries:`, (state as any)?.auctionLog?.length);
+  
   if (!database) {
     console.warn('⚠️ Firebase not initialized, cannot save online');
     // Try localStorage as last resort
@@ -142,11 +148,14 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
     // Strip photos before saving to Firebase to reduce data size
     const lightweightState = stripPhotosFromState(stateData) as Record<string, unknown>;
     
+    console.log(`📝 [Firebase] Saving to path: auctions/${auctionId}`);
     await set(auctionRef, {
       ...(typeof lightweightState === 'object' && lightweightState !== null ? lightweightState : {}),
       lastUpdated: Date.now(),
     });
-    console.log('✅ Auction state saved to Firebase:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
+    console.log('✅ [Firebase] Auction state saved to Firebase:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
+    console.log(`✅ [Firebase] Last updated player:`, (lightweightState as any).currentPlayer?.name || 'N/A');
+    
     
     // Also save to localStorage as backup (non-blocking, ignore errors)
     try {
@@ -225,21 +234,35 @@ export function subscribeToAuctionUpdates(
   auctionId: string,
   callback: (state: unknown) => void
 ): () => void {
+  console.log(`📡 [subscribeToAuctionUpdates] Setting up subscription for auctionId: ${auctionId}`);
+  
   if (!database) {
     console.warn('Firebase not initialized, real-time updates unavailable');
     return () => {};
   }
   
   const auctionRef = ref(database, `auctions/${auctionId}`);
+  console.log(`📡 [Firebase] Listening to path: auctions/${auctionId}`);
   
+  let callbackCount = 0;
   const unsubscribe = onValue(auctionRef, (snapshot) => {
+    callbackCount++;
     const data = snapshot.val();
+    console.log(`📡 [Firebase Subscription] FIRED #${callbackCount}:`, {
+      auctionId,
+      hasData: !!data,
+      logEntries: data?.auctionLog?.length || 0,
+      currentPlayer: data?.currentPlayer?.name,
+      timestamp: new Date().toLocaleTimeString()
+    });
     if (data) {
-      console.log('📡 Firebase update received for auction:', auctionId);
+      console.log(`📡 [Firebase Subscription] Calling callback with data. Last entry:`, data.auctionLog?.[data.auctionLog?.length - 1]);
       callback(data);
+    } else {
+      console.log(`⚠️ [Firebase Subscription] Snapshot is empty for ${auctionId}`);
     }
   }, (error) => {
-    console.error('Firebase subscription error:', error);
+    console.error(`❌ [Firebase Subscription] Error for ${auctionId}:`, error);
   });
   
   return unsubscribe;
