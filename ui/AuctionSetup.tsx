@@ -485,31 +485,44 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
     }
     
     console.log(`Loading online photos from: ${onlinePhotoBaseUrl}`);
-    let loadedCount = 0;
     const extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
     
-    const updatedPlayers = await Promise.all(
-      players.map(async (player) => {
-        // Try different extensions
-        for (const ext of extensions) {
-          const url = `${onlinePhotoBaseUrl}/${player.id}.${ext}`;
-          try {
-            const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok) {
-              loadedCount++;
-              console.log(`✅ Found photo for player ${player.id}: ${url}`);
-              return { ...player, photo: url };
-            }
-          } catch {
-            // Try next extension
+    // Helper to try loading an image with different extensions
+    const tryLoadImage = (playerId: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        let attempts = 0;
+        const tryNext = () => {
+          if (attempts >= extensions.length) {
+            resolve(null);
+            return;
           }
-        }
-        console.log(`⚠️ No photo found for player ${player.id}`);
-        return player;
+          const ext = extensions[attempts];
+          const url = `${onlinePhotoBaseUrl}/${playerId}.${ext}`;
+          const img = new Image();
+          img.onload = () => {
+            console.log(`✅ Found photo for player ${playerId}: ${url}`);
+            resolve(url);
+          };
+          img.onerror = () => {
+            attempts++;
+            tryNext();
+          };
+          img.src = url;
+        };
+        tryNext();
+      });
+    };
+    
+    // Load all photos in parallel
+    const results = await Promise.all(
+      players.map(async (player) => {
+        const photoUrl = await tryLoadImage(player.id);
+        return { ...player, photo: photoUrl || player.photo };
       })
     );
     
-    setPlayers(updatedPlayers);
+    const loadedCount = results.filter(p => p.photo).length;
+    setPlayers(results);
     console.log(`Loaded ${loadedCount}/${players.length} online photos`);
     alert(`Loaded ${loadedCount}/${players.length} player photos from online hosting`);
   };
