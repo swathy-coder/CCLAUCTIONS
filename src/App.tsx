@@ -144,12 +144,25 @@ function App() {
           }
           
           // Build balances from teamBalances
-          if (data.teamBalances && Array.isArray(data.teamBalances)) {
-            data.teamBalances.forEach((team: any) => {
-              balances[team.name] = {
-                balance: team.balance,
-                acquired: team.acquired || 0
-              };
+          // Handle both array format and Firebase object format (with numeric keys)
+          const teamBalancesData = data.teamBalances;
+          console.log('🔍 teamBalances data type:', typeof teamBalancesData, 'isArray:', Array.isArray(teamBalancesData));
+          
+          if (teamBalancesData) {
+            const teamsArray = Array.isArray(teamBalancesData) 
+              ? teamBalancesData 
+              : Object.values(teamBalancesData); // Firebase sometimes converts arrays to objects
+            
+            console.log('🔍 Processing', teamsArray.length, 'teams from Firebase');
+            
+            teamsArray.forEach((team: any) => {
+              if (team && team.name) {
+                console.log(`   ${team.name}: balance=${team.balance}, acquired=${team.acquired}`);
+                balances[team.name] = {
+                  balance: team.balance,
+                  acquired: team.acquired || 0
+                };
+              }
             });
           }
           
@@ -178,10 +191,23 @@ function App() {
           console.log('📊 Converted resumeData:', resumeData);
           
           // Convert recovered data to setup format using NEW auctionId
+          // Handle Firebase object format for arrays (Firebase converts arrays to objects with numeric keys)
+          const teamsData = data.teams;
+          const teamsArray = Array.isArray(teamsData) 
+            ? teamsData 
+            : (teamsData ? Object.values(teamsData) : []);
+          
+          const playersData = data.players;
+          const playersArray = Array.isArray(playersData)
+            ? playersData
+            : (playersData ? Object.values(playersData) : []);
+          
+          console.log('🔍 Teams array length:', teamsArray.length, 'Players array length:', playersArray.length);
+          
           const setupData = {
             tournament: data.tournament || 'Recovered Auction',
-            players: data.players || [],
-            teams: data.teams || [],
+            players: playersArray,
+            teams: teamsArray,
             bidLog: [],
             playerImages: {},
             teamLogos: {},
