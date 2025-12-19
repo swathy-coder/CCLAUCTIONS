@@ -121,6 +121,27 @@ export function loadAuctionState(auctionId: string): unknown | null {
   }
 }
 
+// Remove all undefined values from an object (Firebase doesn't allow undefined)
+function removeUndefinedValues(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return null; // Convert undefined to null (Firebase accepts null)
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefinedValues(item));
+  }
+  if (typeof obj === 'object') {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      if (value !== undefined) {
+        cleaned[key] = removeUndefinedValues(value);
+      }
+      // If value is undefined, we simply don't include it in the cleaned object
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 // Save auction state to Firebase Realtime Database
 export async function saveAuctionStateOnline(auctionId: string, state: unknown): Promise<void> {
   console.log(`📤 [saveAuctionStateOnline] Called with auctionId: ${auctionId}`);
@@ -149,15 +170,18 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
     // Strip photos before saving to Firebase to reduce data size
     const lightweightState = stripPhotosFromState(stateData) as Record<string, unknown>;
     
+    // CRITICAL: Remove all undefined values - Firebase rejects undefined!
+    const sanitizedState = removeUndefinedValues(lightweightState) as Record<string, unknown>;
+    
     console.log(`📝 [Firebase] Saving to path: auctions/${auctionId}`);
-    console.log(`📝 [Firebase] Data size: ~${JSON.stringify(lightweightState).length} bytes`);
+    console.log(`📝 [Firebase] Data size: ~${JSON.stringify(sanitizedState).length} bytes`);
     
     await set(auctionRef, {
-      ...(typeof lightweightState === 'object' && lightweightState !== null ? lightweightState : {}),
+      ...(typeof sanitizedState === 'object' && sanitizedState !== null ? sanitizedState : {}),
       lastUpdated: Date.now(),
     });
-    console.log('✅✅✅ [Firebase] SAVE COMPLETE for:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
-    console.log(`✅ [Firebase] Last updated player:`, (lightweightState as any).currentPlayer?.name || 'N/A');
+    console.log('✅✅✅ [Firebase] SAVE COMPLETE for:', auctionId, '| Log entries:', (sanitizedState as any).auctionLog?.length || 0);
+    console.log(`✅ [Firebase] Last updated player:`, (sanitizedState as any).currentPlayer?.name || 'N/A');
     
     
     // Also save to localStorage as backup (non-blocking, ignore errors)
