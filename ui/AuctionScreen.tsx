@@ -480,6 +480,8 @@ function AuctionScreen({
   useEffect(() => {
     if (orderedPlayers.length === 0) return;
     
+    console.log('🔄 [SYNC EFFECT FIRING] auctionId:', auctionId, 'playerIdx:', playerIdx, 'auctionLog.length:', auctionLog.length);
+    
     // Calculate team roster data for sync
     const teamRosterData = teamBalances.map(team => {
       const acquired = team.acquired || 0;
@@ -542,7 +544,12 @@ function AuctionScreen({
     
     console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo, 'Sample log entry:', auctionLog[0]);
     console.log('📤 Device saving to Firebase: Thunderbolts balance=', teamBalances.find(t => t.name === 'Thunderbolts')?.balance, 'units');
-    saveAuctionStateOnline(auctionId, auctionState);
+    
+    // Save to Firebase (with error handling)
+    saveAuctionStateOnline(auctionId, auctionState)
+      .then(() => console.log('✅ [SYNC SUCCESS] Firebase saved for auctionId:', auctionId))
+      .catch(err => console.error('❌ [SYNC ERROR] Failed to save to Firebase:', auctionId, err));
+    
     try {
       localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));
       console.log('✅ Saved to localStorage with', auctionLog.length, 'auction log entries');
