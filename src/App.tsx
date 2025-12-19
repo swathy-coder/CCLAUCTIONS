@@ -78,6 +78,17 @@ function App() {
 
     checkForRecovery();
   }, [setup, isAudienceView, auctionIdFromUrl]);
+
+  // Set auction ID in URL whenever setup changes
+  useEffect(() => {
+    if (setup && setup.auctionId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('auction', setup.auctionId);
+      window.history.replaceState({}, '', url.toString());
+      console.log('✅ App: Updated URL with auction ID:', setup.auctionId);
+    }
+  }, [setup?.auctionId]);
+  
   
   // For audience view, we don't need setup state, just render AudienceView
   // It will load data from localStorage with the auction ID

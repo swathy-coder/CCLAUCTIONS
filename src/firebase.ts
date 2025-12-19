@@ -1,6 +1,6 @@
 // Firebase configuration for real-time auction sync
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, onValue, off } from 'firebase/database';
+import { getDatabase, ref, set, onValue } from 'firebase/database';
 
 // Firebase configuration - Your actual CCL Auctions project
 const firebaseConfig = {
@@ -221,13 +221,16 @@ export function subscribeToAuctionUpdates(
   
   const auctionRef = ref(database, `auctions/${auctionId}`);
   
-  onValue(auctionRef, (snapshot) => {
+  const unsubscribe = onValue(auctionRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
+      console.log('📡 Firebase update received for auction:', auctionId);
       callback(data);
     }
+  }, (error) => {
+    console.error('Firebase subscription error:', error);
   });
   
-  return () => off(auctionRef);
+  return unsubscribe;
 }
 
