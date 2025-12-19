@@ -66,12 +66,10 @@ function App() {
         return;
       }
 
-      // Check if there are any recent auctions to recover
-      const keys = Object.keys(localStorage);
-      const hasRecentAuctions = keys.some(k => k.startsWith('auction_'));
-      
-      if (hasRecentAuctions && !setup) {
-        console.log('📋 Found recent auctions, showing recovery modal');
+      // Always show recovery modal on fresh load to allow cross-device resume
+      // The modal will check Firebase for active auctions
+      if (!setup) {
+        console.log('📋 Showing recovery modal for cross-device auction resume');
         setShowRecovery(true);
       }
       

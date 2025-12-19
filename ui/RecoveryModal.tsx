@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadAuctionStateOnline, loadAuctionState } from '../src/firebase';
+import { getDatabase, ref, get } from 'firebase/database';
 
 interface AuctionInfo {
   id: string;
@@ -17,44 +18,90 @@ interface RecoveryModalProps {
 export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps) {
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    // Load recent auctions from localStorage
-    const recentAuctions: AuctionInfo[] = [];
-    const keys = Object.keys(localStorage);
-    
-    for (const key of keys) {
-      if (key.startsWith('auction_')) {
-        try {
-          const auctionId = key.replace('auction_', '');
-          const data = JSON.parse(localStorage.getItem(key) || '{}');
-          
-          if (data && data.auctionLog) {
-            const soldCount = data.auctionLog.filter((l: any) => l.status === 'Sold').length;
-            recentAuctions.push({
-              id: auctionId,
-              round: data.round || 1,
-              playersSold: soldCount,
-              timestamp: data.timestamp || 0,
-              status: 'In Progress'
-            });
+    const loadAuctions = async () => {
+      try {
+        const recentAuctions: AuctionInfo[] = [];
+
+        // First, try to load from localStorage (for same device recovery)
+        const keys = Object.keys(localStorage);
+        
+        for (const key of keys) {
+          if (key.startsWith('auction_')) {
+            try {
+              const auctionId = key.replace('auction_', '');
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              
+              if (data && data.auctionLog) {
+                const soldCount = data.auctionLog.filter((l: any) => l.status === 'Sold').length;
+                recentAuctions.push({
+                  id: auctionId,
+                  round: data.round || 1,
+                  playersSold: soldCount,
+                  timestamp: data.timestamp || 0,
+                  status: 'In Progress'
+                });
+              }
+            } catch (e) {
+              console.error('Error parsing localStorage auction data:', e);
+            }
           }
-        } catch (e) {
-          console.error('Error parsing auction data:', e);
         }
+
+        // Also try to load from Firebase to show cross-device auctions
+        try {
+          const database = getDatabase();
+          const auctionsRef = ref(database, 'auctions');
+          const snapshot = await get(auctionsRef);
+          
+          if (snapshot.exists()) {
+            const firebaseAuctions = snapshot.val();
+            console.log('📡 Found auctions in Firebase:', Object.keys(firebaseAuctions || {}));
+            
+            for (const [auctionId, data] of Object.entries(firebaseAuctions || {})) {
+              const auctionData = data as any;
+              // Check if this auction is already in our list (from localStorage)
+              if (!recentAuctions.find(a => a.id === auctionId)) {
+                if (auctionData && auctionData.auctionLog) {
+                  const soldCount = auctionData.auctionLog.filter((l: any) => l.status === 'Sold').length;
+                  recentAuctions.push({
+                    id: auctionId,
+                    round: auctionData.round || 1,
+                    playersSold: soldCount,
+                    timestamp: auctionData.lastUpdated || 0,
+                    status: 'In Progress'
+                  });
+                }
+              }
+            }
+          }
+        } catch (firebaseError) {
+          console.warn('⚠️ Could not fetch from Firebase:', firebaseError);
+          // Continue with localStorage data only
+        }
+        
+        // Sort by timestamp (newest first)
+        recentAuctions.sort((a, b) => b.timestamp - a.timestamp);
+        setAuctions(recentAuctions.slice(0, 10));
+        
+        // Auto-select first auction if only one exists
+        if (recentAuctions.length === 1) {
+          setSelectedId(recentAuctions[0].id);
+        }
+
+        console.log('✅ Loaded', recentAuctions.length, 'auctions for recovery');
+      } catch (err) {
+        console.error('Error loading auctions:', err);
+        setError('Failed to load recent auctions');
+      } finally {
+        setLoading(false);
       }
-    }
-    
-    // Sort by timestamp (newest first)
-    recentAuctions.sort((a, b) => b.timestamp - a.timestamp);
-    setAuctions(recentAuctions.slice(0, 10));
-    
-    // Auto-select first auction if only one exists
-    if (recentAuctions.length === 1) {
-      setSelectedId(recentAuctions[0].id);
-    }
+    };
+
+    loadAuctions();
   }, []);
 
   const handleResume = async () => {
