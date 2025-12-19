@@ -4,6 +4,7 @@ import AuctionSetup from '../ui/AuctionSetup';
 import AudienceView from '../ui/AudienceView';
 import RecoveryModal from '../ui/RecoveryModal';
 import { saveAuctionStateOnline } from './firebase';
+import { loadPhotosFromIndexedDB, savePhotosToIndexedDB } from './utils/storage';
 import './App.css';
 
 import type { Player, Team, BidLog, ResumeData } from '../ui/AuctionSetup';
@@ -149,7 +150,7 @@ function App() {
   if (showRecovery) {
     return (
       <RecoveryModal
-        onResume={(auctionData) => {
+        onResume={async (auctionData) => {
           console.log('✅ Resuming auction from RecoveryModal:', auctionData);
           const data = auctionData as any;
           
@@ -171,6 +172,13 @@ function App() {
           
           // Get OLD auction ID from the recovered data
           const oldAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
+          
+          // 📷 RESTORE PHOTOS FROM INDEXEDDB
+          // Photos are stored locally in IndexedDB (not synced via Firebase due to size limits)
+          // We need to restore them to the players array before resuming
+          console.log('📷 Attempting to restore photos from IndexedDB for auction:', oldAuctionId);
+          const photoMap = await loadPhotosFromIndexedDB(oldAuctionId);
+          console.log(`📷 Found ${photoMap.size} photos in IndexedDB`);
           
           // Generate NEW auction ID to ensure fresh Firebase subscription sync
           // This solves the issue where Device 2 AudienceView doesn't update from Device 2 changes
@@ -245,9 +253,25 @@ function App() {
             : (teamsData ? Object.values(teamsData) : []);
           
           const playersData = data.players;
-          const playersArray = Array.isArray(playersData)
+          let playersArray = Array.isArray(playersData)
             ? playersData
             : (playersData ? Object.values(playersData) : []);
+          
+          // 📷 Restore photos from IndexedDB to players
+          if (photoMap.size > 0) {
+            console.log('📷 Restoring photos to players from IndexedDB...');
+            playersArray = playersArray.map((player: any) => {
+              const photo = photoMap.get(player.id) || photoMap.get(String(player.id));
+              if (photo) {
+                return { ...player, photo };
+              }
+              return player;
+            });
+            const playersWithPhotos = playersArray.filter((p: any) => p.photo).length;
+            console.log(`📷 Restored photos to ${playersWithPhotos}/${playersArray.length} players`);
+          } else {
+            console.log('⚠️ No photos found in IndexedDB - players will display without photos');
+          }
           
           console.log('🔍 Teams array length:', teamsArray.length, 'Players array length:', playersArray.length);
           
@@ -270,6 +294,14 @@ function App() {
           
           // Store NEW auction ID for audience view - this will be picked up by URL update effect
           localStorage.setItem('current_auction_id', newAuctionId);
+          
+          // 📷 Save photos to IndexedDB with NEW auction ID so future resumes work
+          if (photoMap.size > 0) {
+            console.log('📷 Saving photos to IndexedDB with new auction ID:', newAuctionId);
+            savePhotosToIndexedDB(newAuctionId, playersArray).catch(err => {
+              console.warn('⚠️ Failed to save photos to IndexedDB for new auction ID:', err);
+            });
+          }
           
           // Copy all data from old Firebase path to new path so nothing is lost
           if (oldAuctionId && oldAuctionId !== newAuctionId) {

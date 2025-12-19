@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { importFromCSV } from '../src/utils/csv';
 import { generateAuctionId, setAuctionIdInUrl } from '../src/firebase';
 import { loadAuctionSetupFromFile, createAuctionSetupSnapshot, saveAuctionSetupToFile } from '../src/logic/setupIO';
+import { savePhotosToIndexedDB } from '../src/utils/storage';
 
 const TOURNAMENT_TYPES = [
   'Men’s CCL',
@@ -1072,6 +1073,12 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
             const auctionId = generateAuctionId();
             console.log('Starting auction with ID:', auctionId);
             setAuctionIdInUrl(auctionId);
+            
+            // Save player photos to IndexedDB (survives page refresh and works across devices on same browser)
+            // This allows Firebase sync to work without sending 49MB of photos
+            savePhotosToIndexedDB(auctionId, players).catch(err => {
+              console.warn('⚠️ Failed to save photos to IndexedDB:', err);
+            });
             
             // Save auction setup to file before starting
             const snapshot = createAuctionSetupSnapshot(
