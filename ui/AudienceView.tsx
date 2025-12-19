@@ -75,14 +75,14 @@ export default function AudienceView({
     }[];
   } | null>(null);
 
-  // Subscribe to real-time Firebase updates when in standalone mode
+  // Subscribe to real-time Firebase updates when in standalone mode OR when we have an auction ID
   useEffect(() => {
-    if (isStandaloneView && effectiveAuctionId) {
-      console.log('Subscribing to auction updates for:', effectiveAuctionId);
+    if (effectiveAuctionId) {
+      console.log('Subscribing to auction updates for:', effectiveAuctionId, 'isStandaloneView:', isStandaloneView);
       
       // Subscribe to real-time updates from Firebase
       const unsubscribe = subscribeToAuctionUpdates(effectiveAuctionId, (data) => {
-        console.log('Received auction update:', data);
+        console.log('📡 Received Firebase update:', data);
         setLiveData(data as typeof liveData);
       });
       
@@ -91,6 +91,7 @@ export default function AudienceView({
         const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
         if (stored) {
           const data = JSON.parse(stored);
+          console.log('📡 Loaded from localStorage:', effectiveAuctionId);
           setLiveData(data);
         }
       } catch (e) {
@@ -100,7 +101,7 @@ export default function AudienceView({
       // Cleanup subscription on unmount
       return unsubscribe;
     }
-  }, [isStandaloneView, effectiveAuctionId]);
+  }, [effectiveAuctionId]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -109,7 +110,7 @@ export default function AudienceView({
 
   // Poll localStorage for updates (for more frequent updates than Firebase)
   useEffect(() => {
-    if (isStandaloneView && effectiveAuctionId) {
+    if (effectiveAuctionId) {
       const pollInterval = setInterval(() => {
         try {
           const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
@@ -127,7 +128,7 @@ export default function AudienceView({
 
       return () => clearInterval(pollInterval);
     }
-  }, [isStandaloneView, effectiveAuctionId]);
+  }, [effectiveAuctionId]);
   
   // Use live data if available, otherwise use props
   const currentPlayer = liveData?.currentPlayer ?? propCurrentPlayer;

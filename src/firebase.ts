@@ -49,37 +49,29 @@ export function setAuctionIdInUrl(auctionId: string) {
 }
 
 // Helper function to strip base64 photos from SOLD players only to reduce size
-// Keep current player photo for audience view
+// Keep current player photo for audience view and keep photos in players array
 function stripPhotosFromState(state: unknown): unknown {
   if (typeof state !== 'object' || state === null) return state;
   
   const stateCopy = { ...state } as Record<string, unknown>;
   
-  // KEEP photo for currentPlayer (audience view needs it)
+  // KEEP currentPlayer photo (audience view needs it to display)
+  // KEEP photos in players array (needed for next player display)
   // Only strip photos from soldPlayers array to save space
   
   if (Array.isArray(stateCopy.soldPlayers)) {
     stateCopy.soldPlayers = stateCopy.soldPlayers.map((p: unknown) => {
       if (typeof p === 'object' && p !== null) {
         const playerCopy = { ...p } as Record<string, unknown>;
-        delete playerCopy.photo; // Remove photo from sold players
+        delete playerCopy.photo; // Remove photo from sold players only
         return playerCopy;
       }
       return p;
     });
   }
   
-  // Remove photos from any general player arrays if present
-  if (Array.isArray(stateCopy.players)) {
-    stateCopy.players = stateCopy.players.map(p => {
-      if (typeof p === 'object' && p !== null) {
-        const playerCopy = { ...p } as Record<string, unknown>;
-        delete playerCopy.photo;
-        return playerCopy;
-      }
-      return p;
-    });
-  }
+  // DO NOT strip photos from players array - keep them for display
+  // DO NOT strip photo from currentPlayer - audience view needs it
   
   return stateCopy;
 }
