@@ -18,6 +18,7 @@ interface RecoveryModalProps {
 export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps) {
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
+  const [manualAuctionId, setManualAuctionId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -105,8 +106,11 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
   }, []);
 
   const handleResume = async () => {
-    if (!selectedId) {
-      setError('Please select an auction to resume');
+    // Use manual ID if provided, otherwise use selected from list
+    const auctionIdToResume = manualAuctionId.trim() || selectedId;
+    
+    if (!auctionIdToResume) {
+      setError('Please enter an auction ID or select from the list');
       return;
     }
 
@@ -115,8 +119,8 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
 
     try {
       // Try to load from Firebase first
-      console.log('📡 Fetching auction from Firebase:', selectedId);
-      const firebaseData = await loadAuctionStateOnline(selectedId);
+      console.log('📡 Fetching auction from Firebase:', auctionIdToResume);
+      const firebaseData = await loadAuctionStateOnline(auctionIdToResume);
       
       if (firebaseData) {
         console.log('✅ Loaded from Firebase:', firebaseData);
@@ -126,7 +130,7 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
 
       // Fallback to localStorage
       console.log('⚠️ Firebase unavailable, loading from localStorage');
-      const localData = loadAuctionState(selectedId);
+      const localData = loadAuctionState(auctionIdToResume);
       if (localData) {
         console.log('✅ Loaded from localStorage:', localData);
         onResume(localData);
@@ -137,7 +141,7 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
     } catch (err) {
       console.error('Resume error:', err);
       // Try localStorage fallback
-      const localData = loadAuctionState(selectedId);
+      const localData = loadAuctionState(auctionIdToResume);
       if (localData) {
         console.log('✅ Fallback to localStorage succeeded');
         onResume(localData);
@@ -212,7 +216,10 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
             {auctions.map((auction) => (
               <div
                 key={auction.id}
-                onClick={() => setSelectedId(auction.id)}
+                onClick={() => {
+                  setSelectedId(auction.id);
+                  setManualAuctionId(''); // Clear manual input when selecting from list
+                }}
                 style={{
                   padding: '1rem',
                   marginBottom: '0.5rem',
@@ -280,9 +287,58 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
               color: '#666',
             }}
           >
-            <p>No recent auctions found. Start a new auction.</p>
+            <p>No recent auctions found. Enter an auction ID below.</p>
           </div>
         )}
+
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            padding: '1rem',
+            background: 'rgba(255, 255, 255, 0.05)',
+            borderRadius: '0.8rem',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              color: '#aaa',
+              marginBottom: '0.5rem',
+              fontWeight: 600,
+            }}
+          >
+            Or Enter Auction ID:
+          </label>
+          <input
+            type="text"
+            placeholder="e.g., Auction-A-20251219"
+            value={manualAuctionId}
+            onChange={(e) => {
+              setManualAuctionId(e.target.value);
+              if (e.target.value.trim()) {
+                setSelectedId(''); // Clear selection when typing
+              }
+            }}
+            style={{
+              width: '100%',
+              padding: '0.8rem',
+              background: 'rgba(0, 0, 0, 0.3)',
+              border: manualAuctionId.trim() ? '2px solid rgba(76, 175, 80, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '0.6rem',
+              color: '#fff',
+              fontSize: '0.95rem',
+              boxSizing: 'border-box',
+              transition: 'border-color 0.2s ease',
+            }}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleResume();
+              }
+            }}
+          />
+        </div>
 
         {error && (
           <div
@@ -328,21 +384,21 @@ export default function RecoveryModal({ onResume, onCancel }: RecoveryModalProps
           </button>
           <button
             onClick={handleResume}
-            disabled={!selectedId || loading}
+            disabled={!(selectedId || manualAuctionId.trim()) || loading}
             style={{
               padding: '0.8rem 1.5rem',
               background:
-                selectedId && !loading
+                (selectedId || manualAuctionId.trim()) && !loading
                   ? 'linear-gradient(135deg, #1976d2, #1565c0)'
                   : 'rgba(25, 118, 210, 0.3)',
               color: '#fff',
               border: 'none',
               borderRadius: '0.6rem',
-              cursor: selectedId && !loading ? 'pointer' : 'not-allowed',
+              cursor: (selectedId || manualAuctionId.trim()) && !loading ? 'pointer' : 'not-allowed',
               fontSize: '1rem',
               fontWeight: 600,
               transition: 'all 0.2s ease',
-              opacity: selectedId && !loading ? 1 : 0.5,
+              opacity: (selectedId || manualAuctionId.trim()) && !loading ? 1 : 0.5,
             }}
           >
             {loading ? '⏳ Loading...' : '▶️ Resume'}
