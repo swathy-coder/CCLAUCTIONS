@@ -9,6 +9,18 @@ import './App.css';
 
 import type { Player, Team, BidLog, ResumeData } from '../ui/AuctionSetup';
 
+// Password hash (SHA-256) - the actual password is NOT stored in code
+const ADMIN_HASH = 'd5c40c7735e17f7cd29a17a4a8e7cdb0ed3c0a694047a491ad59daaaab59b699';
+
+// Simple SHA-256 hash function for browser
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 interface SetupData {
   tournament: string;
   players: Player[];
@@ -88,11 +100,37 @@ function App() {
   const [showRecovery, setShowRecovery] = useState(false);
   const [checkingRecovery, setCheckingRecovery] = useState(true);
   
+  // Password protection state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  
   // Check if this is an audience view window
   const urlParams = new URLSearchParams(window.location.search);
   const isAudienceView = urlParams.get('audienceView') === 'true';
   const auctionIdFromUrl = urlParams.get('auction');
   console.log('App params - isAudienceView:', isAudienceView, 'auctionId:', auctionIdFromUrl);
+  
+  // Check for saved authentication on mount
+  useEffect(() => {
+    const savedAuth = sessionStorage.getItem('ccl_auth');
+    if (savedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+  
+  // Password check handler
+  const handlePasswordSubmit = async () => {
+    const inputHash = await hashPassword(passwordInput);
+    if (inputHash === ADMIN_HASH) {
+      setIsAuthenticated(true);
+      setPasswordError('');
+      sessionStorage.setItem('ccl_auth', 'true'); // Remember for this session
+    } else {
+      setPasswordError('Incorrect password');
+      setPasswordInput('');
+    }
+  };
   
   // Check for recovery on mount
   useEffect(() => {
@@ -136,6 +174,83 @@ function App() {
       console.error('Error in AudienceView:', error);
       return <div style={{ color: 'red', padding: '2rem' }}>Error in AudienceView: {String(error)}</div>;
     }
+  }
+  
+  // Password gate for auctioneer access (not needed for audience view)
+  if (!isAuthenticated) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%)',
+      }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '1.5rem',
+          padding: '3rem',
+          width: '90%',
+          maxWidth: '400px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏏</div>
+          <h1 style={{ color: '#fff', fontSize: '1.8rem', marginBottom: '0.5rem' }}>CCL Auction 2025</h1>
+          <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.95rem' }}>Enter password to access auctioneer panel</p>
+          
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+            placeholder="Password"
+            style={{
+              width: '100%',
+              padding: '1rem',
+              fontSize: '1.1rem',
+              background: 'rgba(0, 0, 0, 0.3)',
+              border: passwordError ? '2px solid #f44336' : '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '0.8rem',
+              color: '#fff',
+              marginBottom: '1rem',
+              boxSizing: 'border-box',
+              textAlign: 'center',
+            }}
+            autoFocus
+          />
+          
+          {passwordError && (
+            <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              ❌ {passwordError}
+            </div>
+          )}
+          
+          <button
+            onClick={handlePasswordSubmit}
+            style={{
+              width: '100%',
+              padding: '1rem',
+              fontSize: '1.1rem',
+              background: 'linear-gradient(135deg, #1976d2, #1565c0)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '0.8rem',
+              cursor: 'pointer',
+              fontWeight: 600,
+              transition: 'transform 0.2s',
+            }}
+          >
+            🔓 Enter
+          </button>
+          
+          <p style={{ color: '#666', marginTop: '2rem', fontSize: '0.8rem' }}>
+            Audience? Use the shared link to watch the auction live.
+          </p>
+        </div>
+      </div>
+    );
   }
   
   // Show recovery modal if checking and found auctions
