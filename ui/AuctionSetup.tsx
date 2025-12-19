@@ -267,6 +267,11 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
   const [resumeData, setResumeData] = useState<ResumeData | undefined>(undefined);
   const [playerImages, setPlayerImages] = useState<{[id: string]: string}>({});
   const [teamLogos, setTeamLogos] = useState<{[name: string]: string}>({});
+  
+  // Online photo hosting - use URLs instead of base64 for cross-device support
+  const [useOnlinePhotos, setUseOnlinePhotos] = useState(false);
+  const [onlinePhotoBaseUrl, setOnlinePhotoBaseUrl] = useState('https://cclauctions.pages.dev/player-photos');
+  
   const playerCSVRef = useRef<HTMLInputElement>(null);
   const teamCSVRef = useRef<HTMLInputElement>(null);
   const bidCSVRef = useRef<HTMLInputElement>(null);
@@ -470,6 +475,43 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
         console.warn(`Could not extract ID from filename: ${file.name}`);
       }
     });
+  };
+
+  // Load photos from online URLs (Cloudflare-hosted)
+  const loadOnlinePhotos = async () => {
+    if (!players.length) {
+      alert('Please load players CSV first');
+      return;
+    }
+    
+    console.log(`Loading online photos from: ${onlinePhotoBaseUrl}`);
+    let loadedCount = 0;
+    const extensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
+    
+    const updatedPlayers = await Promise.all(
+      players.map(async (player) => {
+        // Try different extensions
+        for (const ext of extensions) {
+          const url = `${onlinePhotoBaseUrl}/${player.id}.${ext}`;
+          try {
+            const response = await fetch(url, { method: 'HEAD' });
+            if (response.ok) {
+              loadedCount++;
+              console.log(`✅ Found photo for player ${player.id}: ${url}`);
+              return { ...player, photo: url };
+            }
+          } catch {
+            // Try next extension
+          }
+        }
+        console.log(`⚠️ No photo found for player ${player.id}`);
+        return player;
+      })
+    );
+    
+    setPlayers(updatedPlayers);
+    console.log(`Loaded ${loadedCount}/${players.length} online photos`);
+    alert(`Loaded ${loadedCount}/${players.length} player photos from online hosting`);
   };
 
   // Handle team logo uploads - match by team name in filename
@@ -771,10 +813,72 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
           Randomize
         </button>
       </div>
-      <div>
-        <label>Upload Player Photos:</label>
-        <input type="file" accept="image/*" multiple ref={playerImgRef} onChange={handlePlayerImages} />
-        <div style={{fontSize: '0.85rem', color: '#666', marginTop: 4}}>Photo files should be named with player ID (e.g., 1.jpg, 2.png, 101.jpg)</div>
+      
+      {/* Player Photos Section */}
+      <div style={{marginTop: 16, padding: '16px', background: '#f0f7ff', borderRadius: '8px', border: '1px solid #1976d2'}}>
+        <div style={{fontWeight: 600, marginBottom: 12, color: '#1976d2'}}>📸 Player Photos</div>
+        
+        {/* Toggle between local upload and online */}
+        <div style={{display: 'flex', gap: '16px', marginBottom: 12}}>
+          <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}>
+            <input 
+              type="radio" 
+              checked={!useOnlinePhotos} 
+              onChange={() => setUseOnlinePhotos(false)}
+            />
+            <span>Upload from computer</span>
+          </label>
+          <label style={{display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'}}>
+            <input 
+              type="radio" 
+              checked={useOnlinePhotos} 
+              onChange={() => setUseOnlinePhotos(true)}
+            />
+            <span>Use online hosted photos (recommended for cross-device)</span>
+          </label>
+        </div>
+        
+        {!useOnlinePhotos ? (
+          // Local upload option
+          <div>
+            <input type="file" accept="image/*" multiple ref={playerImgRef} onChange={handlePlayerImages} />
+            <div style={{fontSize: '0.85rem', color: '#666', marginTop: 4}}>Photo files should be named with player ID (e.g., 1.jpg, 2.png, 101.jpg)</div>
+          </div>
+        ) : (
+          // Online photos option
+          <div>
+            <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+              <input 
+                type="text" 
+                value={onlinePhotoBaseUrl}
+                onChange={(e) => setOnlinePhotoBaseUrl(e.target.value)}
+                placeholder="Base URL for photos"
+                style={{flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ccc'}}
+              />
+              <button
+                type="button"
+                onClick={loadOnlinePhotos}
+                disabled={!players.length}
+                style={{
+                  padding: '8px 16px',
+                  background: players.length ? '#1976d2' : '#ccc',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: players.length ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Load Photos
+              </button>
+            </div>
+            <div style={{fontSize: '0.85rem', color: '#666', marginTop: 4}}>
+              Photos will be loaded as: {onlinePhotoBaseUrl}/[playerId].jpg
+            </div>
+            <div style={{fontSize: '0.85rem', color: '#388e3c', marginTop: 4}}>
+              ✅ Online photos work across all devices and sync via Firebase!
+            </div>
+          </div>
+        )}
         
         {/* Photo preview grid */}
         {players.length > 0 && (
