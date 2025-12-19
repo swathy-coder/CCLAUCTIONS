@@ -164,17 +164,28 @@ function AuctionScreen({
     };
     
     if (resumeData?.balances) {
-      return teams.map(t => ({
+      const initialized = teams.map(t => ({
         ...t,
         balance: resumeData.balances[t.name]?.balance ?? normalizeBalance(t.balance && t.balance > 0 ? t.balance : defaultBalance),
         acquired: resumeData.balances[t.name]?.acquired ?? 0
       }));
+      console.log('📊 AuctionScreen init - resumeData found:');
+      initialized.forEach(t => {
+        console.log(`   ${t.name}: balance=${t.balance} units (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
+      });
+      return initialized;
     }
-    return teams.map(t => ({
+    
+    const initialized = teams.map(t => ({
       ...t,
       balance: normalizeBalance(t.balance && t.balance > 0 ? t.balance : defaultBalance),
       acquired: 0
     }));
+    console.log('📊 AuctionScreen init - fresh start:');
+    initialized.forEach(t => {
+      console.log(`   ${t.name}: balance=${t.balance} units (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
+    });
+    return initialized;
   });
 
   // Bidding state
@@ -479,9 +490,10 @@ function AuctionScreen({
         .filter(log => log.team === team.name && log.status === 'Sold')
         .reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
       
-      // Calculate blue budget
-      const totalPurse = totalSpent + remaining;
-      const blueBudget = Math.floor((blueCapPercent / 100) * totalPurse);
+      // Calculate blue budget using ORIGINAL purse (not current spent + remaining)
+      // This ensures correct calculation even if team has gone over budget
+      const originalPurse = getOriginalPurse(team.name);
+      const blueBudget = Math.floor((blueCapPercent / 100) * originalPurse);
       const blueSpent = getBlueSpentByTeam(team.name);
       const blueLeft = Math.max(0, blueBudget - blueSpent);
       
@@ -524,6 +536,7 @@ function AuctionScreen({
     };
     
     console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo, 'Sample log entry:', auctionLog[0]);
+    console.log('📤 Device saving to Firebase: Thunderbolts balance=', teamBalances.find(t => t.name === 'Thunderbolts')?.balance, 'units');
     saveAuctionStateOnline(auctionId, auctionState);
     try {
       localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));
@@ -1196,6 +1209,11 @@ function AuctionScreen({
                   const maxBlueBidForTeam = getMaxBlueBid(team.name);
                   const canAffordBlueCap = !isCurrentPlayerBlue || maxBlueBidForTeam >= 10;
                   
+                  // Logging for debugging bidding controls vs team roster
+                  if (selectedTeam === team.name) {
+                    console.log(`🎯 Bidding Controls selected team: ${team.name} | balance=${team.balance} units (${formatCurrency(team.balance)}) | acquired=${acquired} | maxBlueBid=${maxBlueBidForTeam} | canAffordBalance=${canAffordBalance} | canAffordBlueCap=${canAffordBlueCap}`);
+                  }
+                  
                   // Max players check: team cannot acquire more than maxPlayersPerTeam
                   const hasReachedMaxPlayers = acquired >= maxPlayersPerTeam;
                   
@@ -1362,6 +1380,10 @@ function AuctionScreen({
                   const acquired = team.acquired || 0;
                   const remaining = team.balance;
                   const needed = Math.max(0, minPlayersPerTeam - acquired);
+                  
+                  // Log team roster values for debugging
+                  console.log(`📋 Team Roster displaying: ${team.name} | balance=${remaining} units (${formatCurrency(remaining)}) | acquired=${acquired}`);
+                  
                   const minNeeded = needed <= 1 ? 0 : (needed - 1) * 100;
                   const maxBidBalanceUnits = Math.max(0, remaining - minNeeded);
                   const maxBidUnits = maxBidBalanceUnits;
@@ -1373,9 +1395,10 @@ function AuctionScreen({
                     .filter(log => log.team === team.name && log.status === 'Sold')
                     .reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
                   
-                  // Calculate blue budget
-                  const totalPurse = totalSpent + remaining;
-                  const blueBudget = Math.floor((blueCapPercent / 100) * totalPurse);
+                  // Calculate blue budget using ORIGINAL purse (not current spent + remaining)
+                  // This ensures correct calculation even if team has gone over budget
+                  const originalPurse = getOriginalPurse(team.name);
+                  const blueBudget = Math.floor((blueCapPercent / 100) * originalPurse);
                   const blueSpent = getBlueSpentByTeam(team.name);
                   const blueLeft = Math.max(0, blueBudget - blueSpent);
                   const isBlueCapLow = blueLeft < blueBudget * 0.2;

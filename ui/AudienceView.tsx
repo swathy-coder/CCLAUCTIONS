@@ -37,7 +37,7 @@ export default function AudienceView({
   const isStandaloneView = urlParams.get('audienceView') === 'true';
   // Get auctionId from URL first, then props, then localStorage fallback
   const effectiveAuctionId = urlParams.get('auction') || auctionId || localStorage.getItem('current_auction_id');
-  console.log('AudienceView rendered. isStandaloneView:', isStandaloneView, 'effectiveAuctionId:', effectiveAuctionId);
+  console.log('🎬 AudienceView rendered. isStandaloneView:', isStandaloneView, 'effectiveAuctionId:', effectiveAuctionId, 'URL auction param:', urlParams.get('auction'), 'localStorage auction:', localStorage.getItem('current_auction_id'));
   
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -141,11 +141,13 @@ export default function AudienceView({
   // Poll Firebase for updates (for cross-device sync when localStorage is stale)
   useEffect(() => {
     if (effectiveAuctionId) {
+      let pollCount = 0;
       const firebasePollInterval = setInterval(async () => {
         try {
           const data = await loadAuctionStateOnline(effectiveAuctionId);
           if (data) {
-            console.log('🔥 AudienceView polled Firebase - got', (data as any)?.auctionLog?.length || 0, 'log entries');
+            pollCount++;
+            console.log(`🔥 AudienceView Firebase poll #${pollCount} - auctionId=${effectiveAuctionId} - got ${(data as any)?.auctionLog?.length || 0} log entries, currentPlayer: ${(data as any)?.currentPlayer?.name}, Thunderbolts balance: ${(data as any)?.teamBalances?.find((t: any) => t.name === 'Thunderbolts')?.balance} units`);
             setLiveData(data as typeof liveData);
           }
         } catch (e) {
