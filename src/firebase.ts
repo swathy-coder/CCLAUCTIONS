@@ -130,7 +130,8 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
   console.log(`   Auction log entries:`, (state as any)?.auctionLog?.length);
   
   if (!database) {
-    console.warn('⚠️ Firebase not initialized, cannot save online');
+    console.error('❌❌❌ CRITICAL: Firebase database NOT initialized!');
+    alert('Firebase not initialized! Changes will NOT sync to other devices. Please refresh the page.');
     // Try localStorage as last resort
     try {
       saveAuctionState(auctionId, state);
@@ -149,11 +150,13 @@ export async function saveAuctionStateOnline(auctionId: string, state: unknown):
     const lightweightState = stripPhotosFromState(stateData) as Record<string, unknown>;
     
     console.log(`📝 [Firebase] Saving to path: auctions/${auctionId}`);
+    console.log(`📝 [Firebase] Data size: ~${JSON.stringify(lightweightState).length} bytes`);
+    
     await set(auctionRef, {
       ...(typeof lightweightState === 'object' && lightweightState !== null ? lightweightState : {}),
       lastUpdated: Date.now(),
     });
-    console.log('✅ [Firebase] Auction state saved to Firebase:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
+    console.log('✅✅✅ [Firebase] SAVE COMPLETE for:', auctionId, '| Log entries:', (lightweightState as any).auctionLog?.length || 0);
     console.log(`✅ [Firebase] Last updated player:`, (lightweightState as any).currentPlayer?.name || 'N/A');
     
     
