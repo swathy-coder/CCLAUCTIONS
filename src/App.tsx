@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AuctionScreen from '../ui/AuctionScreen';
 import AuctionSetup from '../ui/AuctionSetup';
 import AudienceView from '../ui/AudienceView';
+import RecoveryModal from '../ui/RecoveryModal';
 import './App.css';
 
 import type { Player, Team, BidLog, ResumeData } from '../ui/AuctionSetup';
@@ -48,12 +49,37 @@ try {
 function App() {
   console.log('App component rendering');
   const [setup, setSetup] = useState<SetupData | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [checkingRecovery, setCheckingRecovery] = useState(true);
   
   // Check if this is an audience view window
   const urlParams = new URLSearchParams(window.location.search);
   const isAudienceView = urlParams.get('audienceView') === 'true';
   const auctionIdFromUrl = urlParams.get('auction');
   console.log('App params - isAudienceView:', isAudienceView, 'auctionId:', auctionIdFromUrl);
+  
+  // Check for recovery on mount
+  useEffect(() => {
+    const checkForRecovery = async () => {
+      if (isAudienceView || auctionIdFromUrl) {
+        setCheckingRecovery(false);
+        return;
+      }
+
+      // Check if there are any recent auctions to recover
+      const keys = Object.keys(localStorage);
+      const hasRecentAuctions = keys.some(k => k.startsWith('auction_'));
+      
+      if (hasRecentAuctions && !setup) {
+        console.log('📋 Found recent auctions, showing recovery modal');
+        setShowRecovery(true);
+      }
+      
+      setCheckingRecovery(false);
+    };
+
+    checkForRecovery();
+  }, [setup, isAudienceView, auctionIdFromUrl]);
   
   // For audience view, we don't need setup state, just render AudienceView
   // It will load data from localStorage with the auction ID
@@ -65,6 +91,42 @@ function App() {
       console.error('Error in AudienceView:', error);
       return <div style={{ color: 'red', padding: '2rem' }}>Error in AudienceView: {String(error)}</div>;
     }
+  }
+  
+  // Show recovery modal if checking and found auctions
+  if (checkingRecovery) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0e27' }}>
+        <div style={{ color: '#fff', fontSize: '1.2rem' }}>⏳ Loading...</div>
+      </div>
+    );
+  }
+
+  if (showRecovery) {
+    return (
+      <RecoveryModal
+        onResume={(auctionData) => {
+          console.log('✅ Resuming auction:', auctionData);
+          // Convert recovered data to setup format
+          setSetup({
+            tournament: (auctionData as any).tournament || 'Recovered Auction',
+            players: (auctionData as any).players || [],
+            teams: (auctionData as any).teams || [],
+            bidLog: [],
+            playerImages: {},
+            teamLogos: {},
+            defaultBalance: (auctionData as any).defaultBalance || 0,
+            resumeData: auctionData as ResumeData,
+            auctionId: (auctionData as any).auctionId || '',
+          });
+          setShowRecovery(false);
+        }}
+        onCancel={() => {
+          console.log('User chose new auction');
+          setShowRecovery(false);
+        }}
+      />
+    );
   }
   
   console.log('App final render - setup:', setup ? 'YES' : 'NO');
