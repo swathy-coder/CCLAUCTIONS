@@ -75,10 +75,37 @@ export default function AudienceView({
     }[];
   } | null>(null);
 
+  // Track online status to force reconnect
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [reconnectKey, setReconnectKey] = useState(0);
+  
+  // Listen for online/offline events and force reconnect
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('🌐 AudienceView: Back ONLINE - forcing Firebase reconnect');
+      setIsOnline(true);
+      // Force re-subscription by updating key
+      setReconnectKey(k => k + 1);
+    };
+    const handleOffline = () => {
+      console.log('📴 AudienceView: OFFLINE detected');
+      setIsOnline(false);
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Subscribe to real-time Firebase updates when in standalone mode OR when we have an auction ID
+  // reconnectKey forces re-subscription when coming back online
   useEffect(() => {
     if (effectiveAuctionId) {
-      console.log('🔥 AudienceView: Subscribing to Firebase for:', effectiveAuctionId, 'isStandaloneView:', isStandaloneView);
+      console.log('🔥 AudienceView: Subscribing to Firebase for:', effectiveAuctionId, 'isStandaloneView:', isStandaloneView, 'reconnectKey:', reconnectKey);
       
       let updateCount = 0;
       
@@ -114,7 +141,7 @@ export default function AudienceView({
       // Cleanup subscription on unmount
       return unsubscribe;
     }
-  }, [effectiveAuctionId]);
+  }, [effectiveAuctionId, reconnectKey]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -317,7 +344,31 @@ export default function AudienceView({
           background: #0a0e27 !important;
           color: #fff !important;
         }
+        @keyframes pulse-warning {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
       `}</style>
+      
+      {/* Offline Warning Banner for Audience */}
+      {!isOnline && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(90deg, #ff9800, #f57c00)',
+          color: 'white',
+          padding: '0.6rem 1rem',
+          textAlign: 'center',
+          zIndex: 9999,
+          fontWeight: 600,
+          fontSize: '0.95rem',
+          animation: 'pulse-warning 2s infinite',
+        }}>
+          ⏳ Waiting for connection... Updates will resume automatically
+        </div>
+      )}
       
       {/* Auction Complete Overlay */}
       {liveData?.auctionComplete && (
