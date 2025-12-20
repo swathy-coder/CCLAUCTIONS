@@ -2,6 +2,12 @@
    AUCTION SCREEN - DESKTOP FIRST DESIGN
    =================================== */
 
+/* Offline Banner Animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
 /* Reset & Base */
 * {
   box-sizing: border-box;

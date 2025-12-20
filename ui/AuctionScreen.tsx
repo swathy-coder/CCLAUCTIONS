@@ -217,6 +217,23 @@ function AuctionScreen({
   const [lastSoldTeam, setLastSoldTeam] = useState('');
   const [lastSoldAmount, setLastSoldAmount] = useState(0);
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
+  
+  // Online/Offline status indicator
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Toggle team row expansion
   const toggleTeamExpansion = (teamName: string) => {
@@ -1057,6 +1074,27 @@ function AuctionScreen({
 
   return (
     <div className="auction-container">
+      {/* Offline Warning Banner */}
+      {!isOnline && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(90deg, #ff6b6b, #ee5a5a)',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          textAlign: 'center',
+          zIndex: 9999,
+          fontWeight: 600,
+          fontSize: '1rem',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+          animation: 'pulse 2s infinite',
+        }}>
+          ⚠️ OFFLINE - Audience view paused. Changes will sync when internet reconnects.
+        </div>
+      )}
+      
       {/* Auction Complete Overlay */}
       {auctionComplete && (
         <div className="completion-overlay" onClick={() => setAuctionComplete(false)}>
