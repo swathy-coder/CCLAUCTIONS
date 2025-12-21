@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './AudienceView.css';
 import type { Player, Team } from './AuctionScreen';
 import { subscribeToAuctionUpdates } from '../src/firebase';
@@ -519,6 +519,19 @@ export default function AudienceView({
             <span style={{ fontSize: '1.5rem' }}>⏳</span>
             <span style={{ color: '#ffb74d', fontWeight: 700, fontSize: '1.1rem' }}>{auctionLog.filter(log => log.status === 'Unsold').length} Unsold</span>
           </div>
+          {/* Players Remaining - Blue and Red counts */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(156, 39, 176, 0.2)', borderRadius: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>📋</span>
+            <span style={{ color: '#ce93d8', fontWeight: 700, fontSize: '1.1rem' }}>
+              {(() => {
+                const decidedNames = new Set(auctionLog.map(l => l.playerName));
+                const remaining = allPlayers.filter(p => !decidedNames.has(p.name));
+                const blueRemaining = remaining.filter(p => (p.category || '').toLowerCase() === 'blue').length;
+                const redRemaining = remaining.filter(p => (p.category || '').toLowerCase() === 'red').length;
+                return `${remaining.length} Left (🔵${blueRemaining} 🔴${redRemaining})`;
+              })()}
+            </span>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(76, 175, 80, 0.2)', borderRadius: '0.5rem' }}>
             <span style={{ fontSize: '1.5rem' }}>💰</span>
             <span style={{ color: '#81c784', fontWeight: 700, fontSize: '1.1rem' }}>
@@ -720,13 +733,24 @@ export default function AudienceView({
                     fontSize: '1.1rem',
                     lineHeight: 1.6,
                     color: '#e0e0e0',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
                     width: '100%',
+                    height: '120px',
+                    overflow: 'hidden',
+                    position: 'relative',
                   }}>
-                    {currentPlayer.description || 'No description available'}
+                    {/* Vertical marquee for long descriptions */}
+                    <div style={{
+                      animation: (currentPlayer.description || '').length > 150 ? 'scrollUp 12s linear infinite' : 'none',
+                      animationDelay: '2s',
+                    }}>
+                      {currentPlayer.description || 'No description available'}
+                    </div>
+                    <style>{`
+                      @keyframes scrollUp {
+                        0%, 15% { transform: translateY(0); }
+                        85%, 100% { transform: translateY(calc(-100% + 100px)); }
+                      }
+                    `}</style>
                   </div>
                 </div>
               </div>
@@ -793,6 +817,146 @@ export default function AudienceView({
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* Detailed Team Roster - Same as Auction View */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.08)',
+          borderRadius: '1rem',
+          padding: '1.25rem',
+          backdropFilter: 'blur(10px)',
+          border: '2px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          maxWidth: '1500px',
+          margin: '0 auto',
+          width: '100%',
+        }}>
+          <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.5rem', fontWeight: 700, color: '#fff' }}>
+            📊 Team Roster
+          </h2>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid rgba(255, 255, 255, 0.2)' }}>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 700, color: '#90caf9' }}>Team</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 700, color: '#90caf9' }}>Players</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 700, color: '#ff9800' }}>Needed</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#ef5350' }}>Spent</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#90caf9' }}>Balance</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#64b5f6' }}>🔵 Blue Left</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#81c784' }}>Max Bid</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#ce93d8' }}>Min Reserve</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 700, color: '#90caf9' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(teamRosterData.length > 0 ? teamRosterData : teamBalances.map(team => {
+                  const acquired = team.acquired || 0;
+                  const needed = Math.max(0, minPlayersPerTeam - acquired);
+                  const totalSpent = auctionLog.filter(log => log.team === team.name && log.status === 'Sold').reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
+                  const totalPurse = totalSpent + team.balance;
+                  const blueBudget = Math.floor((blueCapPercent / 100) * totalPurse);
+                  const blueSpent = getBlueSpentByTeam(team.name);
+                  const blueLeft = Math.max(0, blueBudget - blueSpent);
+                  const minNeeded = needed <= 1 ? 0 : (needed - 1) * 100000;
+                  const maxBidUnits = Math.max(0, team.balance - minNeeded);
+                  const isAtRisk = acquired > 0 && team.balance < minNeeded && needed > 1;
+                  return { 
+                    name: team.name, 
+                    logo: team.logo, 
+                    acquired, 
+                    needed,
+                    totalSpent,
+                    balance: team.balance, 
+                    blueLeft, 
+                    maxBidUnits,
+                    minNeeded,
+                    isAtRisk,
+                    isFull: acquired >= maxPlayersPerTeam, 
+                    isComplete: acquired >= minPlayersPerTeam 
+                  };
+                })).map((roster: any, idx: number) => {
+                  // Get players for this team from auction log
+                  const teamPlayers = auctionLog
+                    .filter(log => log.team === roster.name && log.status === 'Sold')
+                    .map(log => ({
+                      name: log.playerName,
+                      amount: log.amount as number,
+                      category: log.category || 'Unknown'
+                    }));
+                  
+                  return (
+                    <React.Fragment key={roster.name}>
+                      <tr style={{
+                        background: roster.isAtRisk ? 'rgba(244, 67, 54, 0.15)' : idx % 2 === 0 ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 700, color: '#fff' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {roster.logo && <img src={roster.logo} alt={roster.name} style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} />}
+                            <span>{roster.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600, color: roster.isFull ? '#9e9e9e' : roster.isComplete ? '#81c784' : '#fff' }}>
+                          {roster.acquired}/{maxPlayersPerTeam}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 600 }}>
+                          {roster.needed > 0 ? (
+                            <span style={{ background: '#ff9800', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.85em' }}>{roster.needed}</span>
+                          ) : (
+                            <span style={{ color: '#81c784' }}>✓</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#ef5350' }}>{formatCurrency(roster.totalSpent)}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#90caf9' }}>{formatCurrency(roster.balance)}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: roster.blueLeft < 500000 ? '#ffab00' : '#64b5f6' }}>{formatCurrency(roster.blueLeft)}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#81c784' }}>{roster.isFull ? '—' : formatCurrency(roster.maxBidUnits)}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600, color: '#ce93d8' }}>{roster.isFull || roster.needed === 0 ? '—' : formatCurrency(roster.minNeeded)}</td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          {roster.isAtRisk && <span style={{ background: '#f44336', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>⚠️ At Risk</span>}
+                          {roster.isFull && <span style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>🏆 Full</span>}
+                          {!roster.isFull && roster.isComplete && <span style={{ background: '#4caf50', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>✓ Complete</span>}
+                          {!roster.isAtRisk && !roster.isFull && !roster.isComplete && <span style={{ background: '#2196f3', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>In Progress</span>}
+                        </td>
+                      </tr>
+                      {/* Expandable player list */}
+                      {teamPlayers.length > 0 && (
+                        <tr style={{ background: 'rgba(255, 255, 255, 0.02)' }}>
+                          <td colSpan={9} style={{ padding: '0.5rem 0.75rem 0.75rem 3rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                              {teamPlayers.map((player, pIdx) => (
+                                <div key={pIdx} style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  padding: '0.4rem 0.75rem',
+                                  borderRadius: '15px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: 600,
+                                  background: player.category.toLowerCase() === 'blue' 
+                                    ? 'linear-gradient(135deg, #1565c0, #1976d2)' 
+                                    : player.category.toLowerCase() === 'red'
+                                    ? 'linear-gradient(135deg, #c62828, #e53935)'
+                                    : '#424242',
+                                  color: 'white',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                                }}>
+                                  <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
+                                  <span style={{ padding: '2px 6px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.25)', fontSize: '0.75rem', fontWeight: 700 }}>
+                                    {formatCurrency(player.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
