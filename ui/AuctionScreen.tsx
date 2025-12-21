@@ -52,6 +52,7 @@ interface AuctionScreenProps {
   minPlayersPerTeam?: number;
   maxPlayersPerTeam?: number;
   blueCapPercent?: number;
+  passwordHash?: string; // Auction password hash for resume protection
 }
 
 // Helper: Snap bid to nearest 10-lakh (100 unit) multiple
@@ -89,7 +90,8 @@ function AuctionScreen({
   auctionId, 
   minPlayersPerTeam = 6,
   maxPlayersPerTeam = 12,
-  blueCapPercent = 65
+  blueCapPercent = 65,
+  passwordHash
 }: AuctionScreenProps) {
   console.log('='.repeat(80));
   console.log('🎬 AuctionScreen MOUNTED');
@@ -541,6 +543,7 @@ function AuctionScreen({
     
     const auctionState = {
       auctionId, // Include auction ID for recovery
+      passwordHash, // Include password hash for resume authentication
       currentPlayer: orderedPlayers[playerIdx] || null,
       soldPlayers: auctionLog.filter(l => l.status === 'Sold'),
       teams: teamBalances,

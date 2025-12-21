@@ -5,6 +5,15 @@ import { generateAuctionId, setAuctionIdInUrl } from '../src/firebase';
 import { loadAuctionSetupFromFile, createAuctionSetupSnapshot, saveAuctionSetupToFile } from '../src/logic/setupIO';
 import { savePhotosToIndexedDB } from '../src/utils/storage';
 
+// Hash password using SHA-256
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const TOURNAMENT_TYPES = [
   'Men’s CCL',
   'Women’s CCL',
@@ -58,6 +67,7 @@ interface AuctionSetupData {
   minPlayersPerTeam?: number;
   maxPlayersPerTeam?: number;
   blueCapPercent?: number;
+  passwordHash?: string; // SHA-256 hash of auction password for resume protection
 }
 
 export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetupData & {auctionId: string}) => void }) {
@@ -267,6 +277,9 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
   const [resumeData, setResumeData] = useState<ResumeData | undefined>(undefined);
   const [playerImages, setPlayerImages] = useState<{[id: string]: string}>({});
   const [teamLogos, setTeamLogos] = useState<{[name: string]: string}>({});
+  
+  // Auction password - used to protect resume on refresh
+  const [auctionPassword, setAuctionPassword] = useState('');
   
   // Online photo hosting - use URLs instead of base64 for cross-device support
   const [useOnlinePhotos, setUseOnlinePhotos] = useState(false);
@@ -1082,6 +1095,29 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
           <div style={{fontSize: '0.85rem', color: '#666', marginTop: 4}}>Maximum % of team purse that can be spent on Blue category players. Set to 100% to disable this cap.</div>
         </div>
         
+        {/* Auction Password for Resume Protection */}
+        <div style={{marginTop: 24, padding: '16px', background: '#e3f2fd', borderRadius: '8px', border: '1px solid #90caf9'}}>
+          <label style={{fontWeight: 600, color: '#1565c0'}}>🔐 Auction Password (Required):</label>
+          <input
+            type="password"
+            value={auctionPassword}
+            onChange={e => setAuctionPassword(e.target.value)}
+            placeholder="Set a password to protect your auction"
+            style={{
+              marginLeft: 8, 
+              padding: '0.5em', 
+              fontSize: '1rem', 
+              width: '250px',
+              border: auctionPassword.length >= 4 ? '2px solid #4caf50' : '2px solid #ff9800',
+              borderRadius: '4px'
+            }}
+          />
+          <div style={{fontSize: '0.85rem', color: '#1565c0', marginTop: 6}}>
+            This password will be required to resume the auction if the browser refreshes. 
+            <br/>Minimum 4 characters. <strong>Remember this password!</strong>
+          </div>
+        </div>
+        
         {/* Team logo preview */}
         {teams.length > 0 && (
           <div style={{marginTop: 12, padding: '12px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #e0e0e0'}}>
@@ -1149,7 +1185,7 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
       </div>
       <div style={{marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
         <button
-          onClick={() => {
+          onClick={async () => {
             // Validate setup first
             const validation = validateSetup();
             
@@ -1222,6 +1258,9 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
             );
             saveAuctionSetupToFile(snapshot, resumeData ? true : false);
             
+            // Hash the password before sending
+            const pwHash = await hashPassword(auctionPassword);
+            
             onSetup({
               tournament: customType || tournament,
               players: resumeData ? players : orderedPlayers, // Use original order if resuming, otherwise use auto-randomized
@@ -1235,19 +1274,20 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
               minPlayersPerTeam,
               maxPlayersPerTeam,
               blueCapPercent,
+              passwordHash: pwHash, // Include password hash for resume protection
             });
           }}
-          disabled={!players.length || !teams.length}
+          disabled={!players.length || !teams.length || auctionPassword.length < 4}
           style={{
             fontSize: '2rem',
             padding: '1.2em 3em',
-            background: (!players.length || !teams.length) ? '#ccc' : '#1976d2',
+            background: (!players.length || !teams.length || auctionPassword.length < 4) ? '#ccc' : '#1976d2',
             color: '#fff',
             border: 'none',
             borderRadius: '0.7em',
             fontWeight: 700,
             boxShadow: '0 2px 12px #0002',
-            cursor: (!players.length || !teams.length) ? 'not-allowed' : 'pointer',
+            cursor: (!players.length || !teams.length || auctionPassword.length < 4) ? 'not-allowed' : 'pointer',
             marginBottom: 32,
             marginTop: 8,
             letterSpacing: '0.08em',
