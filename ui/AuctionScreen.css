@@ -150,8 +150,8 @@ body {
 .photo-container {
   position: relative;
   width: 100%;
-  max-width: 240px;
-  height: 320px;
+  max-width: 300px;
+  height: 400px;
   border-radius: 8px;
   overflow: hidden;
   margin: 0 auto;
@@ -247,15 +247,15 @@ body {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: #666;
+  color: #555;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .stat-value {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: #1a1a1a;
 }
@@ -271,7 +271,7 @@ body {
 }
 
 .player-name {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.2;
@@ -287,21 +287,21 @@ body {
 }
 
 .category-badge {
-  padding: 6px 12px;
+  padding: 8px 16px;
   background: #4caf50;
   color: white;
   border-radius: 16px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .specialization {
-  padding: 6px 12px;
+  padding: 8px 16px;
   background: #e0e0e0;
   color: #1a1a1a;
   border-radius: 16px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -316,9 +316,9 @@ body {
 }
 
 .player-description p {
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #222;
   margin: 0;
   word-wrap: break-word;
   overflow-wrap: break-word;

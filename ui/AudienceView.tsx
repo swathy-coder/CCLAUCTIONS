@@ -27,7 +27,7 @@ interface AudienceViewProps {
 
 export default function AudienceView({
   currentPlayer: propCurrentPlayer = null,
-  soldPlayers: propSoldPlayers = [],
+  // soldPlayers prop is deprecated - we now derive it from auctionLog for proper ordering
   teamBalances: propTeamBalances = [],
   auctionLog: propAuctionLog = [],
   round: propRound = 1,
@@ -157,7 +157,7 @@ export default function AudienceView({
   
   // Use live data if available, otherwise use props
   const currentPlayer = liveData?.currentPlayer ?? propCurrentPlayer;
-  const soldPlayers = liveData?.soldPlayers ?? propSoldPlayers;
+  // Note: soldPlayers prop is no longer used - we derive it from auctionLog for proper ordering
   const teamBalances = liveData?.teamBalances ?? propTeamBalances;
   const auctionLog = liveData?.auctionLog ?? propAuctionLog;
   const round = liveData?.round ?? propRound;
@@ -286,7 +286,20 @@ export default function AudienceView({
     setTimeout(() => { document.body.removeChild(a); }, 0);
   }
 
-  const soldPlayersList = soldPlayers;
+  // Derive soldPlayersList from auctionLog to ensure all sold players (before and after resume) are included
+  // Sort by timestamp in reverse chronological order (most recent first)
+  const soldPlayersList = auctionLog
+    .filter(log => log.status === 'Sold')
+    .sort((a, b) => {
+      // Sort by round (descending), then by timestamp (descending)
+      if (a.round !== b.round) return b.round - a.round;
+      // Parse timestamps for proper comparison
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB)) return timeB - timeA;
+      // Fallback to string comparison
+      return b.timestamp.localeCompare(a.timestamp);
+    });
 
   // Compute unsold players list (filter out those that were sold later)
   const unsoldPlayersList = auctionLog.filter(log => {
@@ -559,14 +572,14 @@ export default function AudienceView({
               <div className="player-content" style={{ display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start', width: '100%' }}>
                 {/* Player Photo - Left Side */}
                 <div style={{
-                  flex: '0 0 300px',
+                  flex: '0 0 350px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
                   <div style={{
-                    width: '300px',
-                    height: '400px',
+                    width: '350px',
+                    height: '450px',
                     borderRadius: '1rem',
                     overflow: 'hidden',
                     background: '#1a1f3a',
@@ -574,7 +587,31 @@ export default function AudienceView({
                     position: 'relative',
                   }}>
                     {currentPlayer.photo ? (
-                      <img src={currentPlayer.photo} alt={currentPlayer.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img 
+                        src={currentPlayer.photo} 
+                        alt={currentPlayer.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          // Try alternative format if current one fails
+                          const img = e.currentTarget;
+                          const src = img.src;
+                          if (!src.includes('data:') && !img.dataset.retried) {
+                            img.dataset.retried = 'true';
+                            // Try different extensions
+                            if (src.endsWith('.jpg')) {
+                              img.src = src.replace('.jpg', '.png');
+                            } else if (src.endsWith('.png')) {
+                              img.src = src.replace('.png', '.jpeg');
+                            } else if (src.endsWith('.jpeg')) {
+                              img.src = src.replace('.jpeg', '.JPG');
+                            } else {
+                              img.style.display = 'none';
+                            }
+                          } else {
+                            img.style.display = 'none';
+                          }
+                        }}
+                      />
                     ) : (
                       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: '1.2rem' }}>
                         No Photo
@@ -636,15 +673,15 @@ export default function AudienceView({
                 {/* Player Info - Right Side */}
                 <div style={{ flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem', width: '100%' }}>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 10px rgba(25, 118, 210, 0.5)', textAlign: 'left' }}>
+                    <div style={{ fontSize: '3rem', fontWeight: 900, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 10px rgba(25, 118, 210, 0.5)', textAlign: 'left' }}>
                       {currentPlayer.name}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '2rem', fontSize: '1.2rem', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '2rem', fontSize: '1.4rem', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
                     <div><span style={{ color: '#90caf9' }}>Age:</span> <b>{currentPlayer.age}</b></div>
                     <div><span style={{ color: '#90caf9' }}>Flat:</span> <b>{currentPlayer.flat}</b></div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '1.1rem', width: '100%', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '1.3rem', width: '100%', textAlign: 'left' }}>
                     <div><span style={{ color: '#90caf9' }}>Specialization:</span> <b>{currentPlayer.specialization}</b></div>
                     <div><span style={{ color: '#90caf9' }}>Availability:</span> <b>{currentPlayer.availability}</b></div>
                   </div>
@@ -653,8 +690,8 @@ export default function AudienceView({
                     padding: '1.5rem',
                     background: 'rgba(255, 255, 255, 0.05)',
                     borderRadius: '0.75rem',
-                    fontSize: '1.3rem',
-                    lineHeight: 1.6,
+                    fontSize: '1.4rem',
+                    lineHeight: 1.7,
                     color: '#e0e0e0',
                     textAlign: 'left',
                     display: '-webkit-box',
@@ -816,7 +853,7 @@ export default function AudienceView({
             🏆 Team Rosters
           </h2>
           <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'clamp(0.8rem, 1.8vw, 1rem)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'clamp(0.95rem, 2vw, 1.15rem)' }}>
               <thead>
                 <tr style={{ background: 'rgba(255, 255, 255, 0.1)' }}>
                   <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'left', fontWeight: 700, color: '#90caf9', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Team</th>
@@ -993,9 +1030,8 @@ export default function AudienceView({
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}>
-            {[...soldPlayersList].reverse().slice(0, 20).map((log, idx) => {
+            {soldPlayersList.slice(0, 20).map((log, idx) => {
               const amount = typeof log.amount === 'number' ? log.amount : 0;
-              console.log('Sold player amount:', log.playerName, amount);
               // Unit conversion: 1000 units = ₹1Cr, 100 units = ₹10L
               const displayAmount = amount >= 1000 
                 ? `₹${(amount / 1000).toFixed(2)} Cr` 
@@ -1004,29 +1040,29 @@ export default function AudienceView({
               return (
                 <div key={idx} style={{
                   background: isBluePlayer ? 'rgba(25, 118, 210, 0.15)' : 'rgba(211, 47, 47, 0.15)',
-                  border: isBluePlayer ? '1px solid rgba(25, 118, 210, 0.3)' : '1px solid rgba(211, 47, 47, 0.3)',
+                  border: isBluePlayer ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
                   padding: 'clamp(0.75rem, 2vw, 1rem)',
                   borderRadius: '0.8rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
-                  minHeight: '140px',
+                  minHeight: '160px',
                   justifyContent: 'flex-start',
                 }}>
                   <div style={{ 
-                    fontSize: 'clamp(0.9rem, 2vw, 1rem)', 
+                    fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', 
                     fontWeight: 700, 
                     color: '#fff', 
                     lineHeight: '1.3', 
                     wordBreak: 'break-word',
                     paddingBottom: '0.5rem',
-                    borderBottom: isBluePlayer ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
+                    borderBottom: isBluePlayer ? '3px solid rgba(25, 118, 210, 0.7)' : '3px solid rgba(211, 47, 47, 0.7)',
                   }}>
                     {isBluePlayer ? '🔵' : '🔴'} {log.playerName}
                   </div>
-                  <div style={{ fontSize: 'clamp(0.85rem, 2vw, 1rem)', color: '#90caf9', lineHeight: '1.3' }}>To: <b>{log.team}</b></div>
-                  <div style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.3rem)', fontWeight: 900, color: '#81c784', marginTop: 'auto', paddingTop: '0.5rem' }}>{displayAmount}</div>
-                  <div style={{ fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)', color: '#999' }}>Round {log.round}</div>
+                  <div style={{ fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)', color: '#b0d4f1', lineHeight: '1.3' }}>To: <b style={{ color: '#fff' }}>{log.team}</b></div>
+                  <div style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', fontWeight: 900, color: '#81c784', marginTop: 'auto', paddingTop: '0.5rem' }}>{displayAmount}</div>
+                  <div style={{ fontSize: 'clamp(0.85rem, 1.8vw, 1rem)', color: '#aaa' }}>Round {log.round}</div>
                 </div>
               );
             })}
@@ -1060,7 +1096,7 @@ export default function AudienceView({
             gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: 'clamp(0.75rem, 2vw, 1rem)',
           }}>
-            {unsoldPlayersList.reverse().slice(0, 20).map((log, idx) => {
+            {unsoldPlayersList.slice(0, 20).map((log, idx) => {
               return (
                 <div key={idx} style={{
                   background: 'rgba(255, 152, 0, 0.15)',

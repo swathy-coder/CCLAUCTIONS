@@ -1159,6 +1159,37 @@ function AuctionScreen({
                   src={currentPlayer.photo}
                   alt={currentPlayer.name}
                   className="player-photo"
+                  onError={(e) => {
+                    // Try alternative format if current one fails
+                    const img = e.currentTarget;
+                    const src = img.src;
+                    // If it's a URL that failed, try to add different extensions
+                    if (!src.includes('data:') && !img.dataset.retried) {
+                      img.dataset.retried = 'true';
+                      // Try different case extensions
+                      if (src.endsWith('.jpg')) {
+                        img.src = src.replace('.jpg', '.png');
+                      } else if (src.endsWith('.png')) {
+                        img.src = src.replace('.png', '.jpeg');
+                      } else if (src.endsWith('.jpeg')) {
+                        img.src = src.replace('.jpeg', '.JPG');
+                      } else {
+                        // Hide broken image, show placeholder style
+                        img.style.display = 'none';
+                        const parent = img.parentElement;
+                        if (parent && !parent.querySelector('.photo-fallback')) {
+                          const fallback = document.createElement('div');
+                          fallback.className = 'photo-fallback';
+                          fallback.innerHTML = '<span>Photo unavailable</span>';
+                          fallback.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#e0e0e0;color:#666;font-size:14px;';
+                          parent.appendChild(fallback);
+                        }
+                      }
+                    } else {
+                      // All retries failed, show fallback
+                      img.style.display = 'none';
+                    }
+                  }}
                 />
               ) : (
                 <div className="player-photo-placeholder">
