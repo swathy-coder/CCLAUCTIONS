@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './AudienceView.css';
 import type { Player, Team } from './AuctionScreen';
 import { subscribeToAuctionUpdates } from '../src/firebase';
@@ -167,32 +167,7 @@ export default function AudienceView({
   const minPlayersPerTeam = liveData?.minPlayersPerTeam ?? 6;
   const maxPlayersPerTeam = liveData?.maxPlayersPerTeam ?? 12;
 
-  // State for tracking expanded team rows
-  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
-  // Toggle team row expansion
-  const toggleTeamExpansion = (teamName: string) => {
-    setExpandedTeams(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(teamName)) {
-        newSet.delete(teamName);
-      } else {
-        newSet.add(teamName);
-      }
-      return newSet;
-    });
-  };
-
-  // Get players purchased by a team
-  const getTeamPlayers = (teamName: string) => {
-    return auctionLog
-      .filter((log: AuctionLogEntry) => log.team === teamName && log.status === 'Sold')
-      .map((log: AuctionLogEntry) => ({
-        name: log.playerName,
-        amount: log.amount as number,
-        category: log.category || 'Unknown'
-      }));
-  };
 
   // Calculate blue spending per team (fallback if teamRosterData not available)
   const getBlueSpentByTeam = (teamName: string): number => {
@@ -506,22 +481,62 @@ export default function AudienceView({
           </button>
         </div>
 
-        {/* Current Player Card - Full Width */}
+        {/* Compact Stats Bar */}
         <div style={{
-          marginBottom: '1rem',
-          width: '100%',
+          display: 'flex',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          padding: '0.75rem 1rem',
+          background: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '0.75rem',
           maxWidth: '1500px',
-          margin: '0 auto 1rem auto',
+          margin: '0 auto',
         }}>
-          {/* Current Player Card */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(25, 118, 210, 0.2)', borderRadius: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>✅</span>
+            <span style={{ color: '#90caf9', fontWeight: 700, fontSize: '1.1rem' }}>{soldPlayersList.length} Sold</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(255, 152, 0, 0.2)', borderRadius: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>⏳</span>
+            <span style={{ color: '#ffb74d', fontWeight: 700, fontSize: '1.1rem' }}>{auctionLog.filter(log => log.status === 'Unsold').length} Unsold</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(76, 175, 80, 0.2)', borderRadius: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>💰</span>
+            <span style={{ color: '#81c784', fontWeight: 700, fontSize: '1.1rem' }}>
+              ₹{(() => {
+                const total = soldPlayersList.reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
+                return total >= 1000 ? `${(total / 1000).toFixed(2)} Cr` : `${(total / 10).toFixed(1)} L`;
+              })()} Spent
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(255, 193, 7, 0.2)', borderRadius: '0.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>🏆</span>
+            <span style={{ color: '#ffd54f', fontWeight: 700, fontSize: '1.1rem' }}>
+              Max: ₹{(() => {
+                const maxBid = soldPlayersList.reduce((max, log) => Math.max(max, typeof log.amount === 'number' ? log.amount : 0), 0);
+                return maxBid >= 1000 ? `${(maxBid / 1000).toFixed(2)} Cr` : `${(maxBid / 10).toFixed(1)} L`;
+              })()}
+            </span>
+          </div>
+        </div>
+
+        {/* MAIN CONTENT: Side-by-Side Layout - Player (60%) + Teams (40%) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)',
+          gap: '1rem',
+          maxWidth: '1500px',
+          margin: '0 auto',
+          width: '100%',
+          minHeight: '500px',
+        }}>
+          {/* LEFT: Current Player Card */}
           <div className="current-player-card" style={{
             background: 'rgba(255, 255, 255, 0.08)',
             borderRadius: '1rem',
-            padding: '1.5rem',
+            padding: '1.25rem',
             backdropFilter: 'blur(10px)',
-            width: '1500px',
-            maxWidth: '100%',
-            margin: '0 auto',
             border: currentPlayer && currentPlayer.owner === 'yes'
               ? '2px solid rgba(255, 193, 7, 0.6)'
               : currentPlayer && currentPlayer.category 
@@ -532,14 +547,16 @@ export default function AudienceView({
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
             position: 'relative',
             overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <h2 style={{ margin: 0, fontSize: 'clamp(1.2rem, 3vw, 1.8rem)', fontWeight: 700, color: '#90caf9' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#90caf9' }}>
                 🎯 Current Player
               </h2>
               {currentPlayer && currentPlayer.category && currentPlayer.owner !== 'yes' && (
                 <div style={{
-                  padding: 'clamp(0.3rem, 1.5vw, 0.5rem) clamp(0.6rem, 2vw, 1rem)',
+                  padding: '0.4rem 0.8rem',
                   borderRadius: '0.5rem',
                   background: (currentPlayer.category || '').toLowerCase() === 'blue' 
                     ? 'rgba(25, 118, 210, 0.3)' 
@@ -547,7 +564,7 @@ export default function AudienceView({
                   border: (currentPlayer.category || '').toLowerCase() === 'blue'
                     ? '1px solid rgba(25, 118, 210, 0.6)'
                     : '1px solid rgba(211, 47, 47, 0.6)',
-                  fontSize: 'clamp(0.75rem, 2vw, 0.95rem)',
+                  fontSize: '0.9rem',
                   fontWeight: 700,
                   color: '#fff',
                 }}>
@@ -671,35 +688,30 @@ export default function AudienceView({
                 </div>
                 
                 {/* Player Info - Right Side */}
-                <div style={{ flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem', width: '100%' }}>
-                    <div style={{ fontSize: '3rem', fontWeight: 900, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 10px rgba(25, 118, 210, 0.5)', textAlign: 'left' }}>
-                      {currentPlayer.name}
-                    </div>
+                <div style={{ flex: '1', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'flex-start' }}>
+                  <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#fff', lineHeight: 1.2, textShadow: '0 2px 10px rgba(25, 118, 210, 0.5)' }}>
+                    {currentPlayer.name}
                   </div>
-                  <div style={{ display: 'flex', gap: '2rem', fontSize: '1.4rem', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '1.2rem', flexWrap: 'wrap' }}>
                     <div><span style={{ color: '#90caf9' }}>Age:</span> <b>{currentPlayer.age}</b></div>
                     <div><span style={{ color: '#90caf9' }}>Flat:</span> <b>{currentPlayer.flat}</b></div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '1.3rem', width: '100%', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '1.1rem' }}>
                     <div><span style={{ color: '#90caf9' }}>Specialization:</span> <b>{currentPlayer.specialization}</b></div>
                     <div><span style={{ color: '#90caf9' }}>Availability:</span> <b>{currentPlayer.availability}</b></div>
                   </div>
                   <div style={{
-                    marginTop: '1rem',
-                    padding: '1.5rem',
+                    marginTop: '0.5rem',
+                    padding: '1rem',
                     background: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '0.75rem',
-                    fontSize: '1.4rem',
-                    lineHeight: 1.7,
+                    borderRadius: '0.5rem',
+                    fontSize: '1.1rem',
+                    lineHeight: 1.6,
                     color: '#e0e0e0',
-                    textAlign: 'left',
                     display: '-webkit-box',
-                    WebkitLineClamp: 5,
+                    WebkitLineClamp: 3,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word',
                     width: '100%',
                   }}>
                     {currentPlayer.description || 'No description available'}
@@ -707,429 +719,161 @@ export default function AudienceView({
                 </div>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: 'clamp(2rem, 5vw, 3rem)', color: '#666', fontSize: 'clamp(1rem, 3vw, 1.5rem)' }}>
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666', fontSize: '1.2rem' }}>
                 No player currently being auctioned
               </div>
             )}
           </div>
-        </div>
 
-        {/* Auction Stats - Full Width */}
-        <div style={{
-          marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
-          gridColumn: '1',
-          gridRow: '4',
-        }}>
-          <div className="auction-stats-card" style={{
+          {/* RIGHT: Team Summary Panel */}
+          <div style={{
             background: 'rgba(255, 255, 255, 0.08)',
-            borderRadius: '1.5rem',
-            padding: 'clamp(0.75rem, 2vw, 1.25rem)',
+            borderRadius: '1rem',
+            padding: '1rem',
             backdropFilter: 'blur(10px)',
-            border: '2px solid rgba(76, 175, 80, 0.3)',
+            border: '2px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-            maxWidth: '100%',
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'hidden',
           }}>
-            <h2 style={{ margin: '0 0 clamp(0.75rem, 1.5vw, 1rem) 0', fontSize: 'clamp(1rem, 2.5vw, 1.5rem)', fontWeight: 700, color: '#81c784' }}>
-              📊 Auction Statistics
+            <h2 style={{ margin: '0 0 0.75rem 0', fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>
+              🏆 Team Standings
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 'clamp(0.5rem, 1.5vw, 1rem)' }}>
-              <div style={{
-                background: 'rgba(25, 118, 210, 0.2)',
-                padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-                border: '1px solid rgba(25, 118, 210, 0.3)',
-              }}>
-                <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 900, color: '#90caf9' }}>
-                  {soldPlayersList.length}
-                </div>
-                <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#90caf9', fontWeight: 600, marginTop: '0.25rem' }}>
-                  Players Sold
-                </div>
-              </div>
-              <div style={{
-                background: 'rgba(244, 67, 54, 0.2)',
-                padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-                border: '1px solid rgba(244, 67, 54, 0.3)',
-              }}>
-                <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 900, color: '#ef5350' }}>
-                  {auctionLog.filter(log => log.status === 'Unsold').length}
-                </div>
-                <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#ef5350', fontWeight: 600, marginTop: '0.25rem' }}>
-                  Players Unsold
-                </div>
-              </div>
-              <div style={{
-                background: 'rgba(255, 152, 0, 0.2)',
-                padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-                border: '1px solid rgba(255, 152, 0, 0.3)',
-              }}>
-                <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 900, color: '#ffb74d' }}>
-                  {teamBalances.length}
-                </div>
-                <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#ffb74d', fontWeight: 600, marginTop: '0.25rem' }}>
-                  Teams
-                </div>
-              </div>
-              <div style={{
-                background: 'rgba(156, 39, 176, 0.2)',
-                padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-                border: '1px solid rgba(156, 39, 176, 0.3)',
-              }}>
-                <div style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 900, color: '#ba68c8' }}>
-                  {round}
-                </div>
-                <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#ba68c8', fontWeight: 600, marginTop: '0.25rem' }}>
-                  Current Round
-                </div>
-              </div>
-            </div>
-            {/* Total Money Spent */}
-            <div style={{
-              marginTop: 'clamp(0.5rem, 1.5vw, 1rem)',
-              background: 'rgba(76, 175, 80, 0.2)',
-              padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-              borderRadius: '0.75rem',
-              textAlign: 'center',
-              border: '1px solid rgba(76, 175, 80, 0.3)',
-            }}>
-                <div style={{ fontSize: 'clamp(1.25rem, 4vw, 2rem)', fontWeight: 900, color: '#81c784' }}>
-                  ₹{(() => {
-                    const total = soldPlayersList.reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
-                    return total >= 1000 ? `${(total / 1000).toFixed(2)} Cr` : `${(total / 10).toFixed(1)} L`;
-                  })()}
-                </div>
-              <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#81c784', fontWeight: 600, marginTop: '0.25rem' }}>
-                Total Money Spent
-              </div>
-            </div>
-            {/* Max Bid Stat */}
-            <div style={{ marginTop: 'clamp(0.5rem, 1.5vw, 1rem)' }}>
-              <div style={{
-                background: 'rgba(255, 193, 7, 0.2)',
-                padding: 'clamp(0.5rem, 2vw, 0.75rem)',
-                borderRadius: '0.75rem',
-                textAlign: 'center',
-                border: '1px solid rgba(255, 193, 7, 0.3)',
-              }}>
-                <div style={{ fontSize: 'clamp(1.25rem, 3.5vw, 1.75rem)', fontWeight: 900, color: '#ffd54f' }}>
-                  {(() => {
-                    const maxBid = soldPlayersList.reduce((max, log) => {
-                      const amount = typeof log.amount === 'number' ? log.amount : 0;
-                      return amount > max ? amount : max;
-                    }, 0);
-                    return maxBid > 0 ? `₹${maxBid >= 1000 ? `${(maxBid / 1000).toFixed(2)} Cr` : `${(maxBid / 10).toFixed(1)} L`}` : 'N/A';
-                  })()}
-                </div>
-                <div style={{ fontSize: 'clamp(0.75rem, 1.8vw, 0.95rem)', color: '#ffd54f', fontWeight: 600, marginTop: '0.25rem' }}>
-                  Highest Bid
-                </div>
-              </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {(teamRosterData.length > 0 ? teamRosterData : teamBalances.map(team => {
+                const acquired = team.acquired || 0;
+                const totalSpent = auctionLog.filter(log => log.team === team.name && log.status === 'Sold').reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
+                const totalPurse = totalSpent + team.balance;
+                const blueBudget = Math.floor((blueCapPercent / 100) * totalPurse);
+                const blueSpent = getBlueSpentByTeam(team.name);
+                const blueLeft = Math.max(0, blueBudget - blueSpent);
+                return { name: team.name, logo: team.logo, acquired, balance: team.balance, blueLeft, isFull: acquired >= maxPlayersPerTeam, isComplete: acquired >= minPlayersPerTeam };
+              })).map((roster: any, idx: number) => {
+                const formatCurrency = (units: number) => units >= 1000 ? `₹${(units / 1000).toFixed(1)}Cr` : `₹${(units / 10).toFixed(0)}L`;
+                return (
+                  <div key={roster.name} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto auto auto',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                    padding: '0.6rem 0.5rem',
+                    borderBottom: idx < teamBalances.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                    background: roster.isFull ? 'rgba(76, 175, 80, 0.1)' : 'transparent',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                      {roster.logo && <img src={roster.logo} alt="" style={{ width: '24px', height: '24px', objectFit: 'contain', borderRadius: '4px' }} />}
+                      <span style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{roster.name}</span>
+                      {roster.isFull && <span style={{ fontSize: '0.7rem', background: '#4caf50', padding: '2px 6px', borderRadius: '4px' }}>FULL</span>}
+                    </div>
+                    <div style={{ textAlign: 'right', minWidth: '50px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>Players</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: roster.isComplete ? '#81c784' : '#fff' }}>{roster.acquired}/{maxPlayersPerTeam}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', minWidth: '70px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>Purse</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#90caf9' }}>{formatCurrency(roster.balance)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', minWidth: '70px' }}>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa' }}>🔵 Blue</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: roster.blueLeft < 500 ? '#ffab00' : '#64b5f6' }}>{formatCurrency(roster.blueLeft)}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* Team Rosters Section - Full Width */}
-        <div className="team-rosters-section" style={{
-          background: 'rgba(255, 255, 255, 0.08)',
-          borderRadius: '1.5rem',
-          padding: 'clamp(1rem, 2vw, 1.5rem)',
-          backdropFilter: 'blur(10px)',
-          border: '2px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
-          gridColumn: '1',
-          gridRow: '3',
-          overflow: 'auto',
-        }}>
-          <h2 style={{ margin: '0 0 1.5rem 0', fontSize: 'clamp(1.2rem, 3vw, 1.8rem)', fontWeight: 700, color: '#fff' }}>
-            🏆 Team Rosters
-          </h2>
-          <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'clamp(0.95rem, 2vw, 1.15rem)' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255, 255, 255, 0.1)' }}>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'left', fontWeight: 700, color: '#90caf9', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Team</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', fontWeight: 700, color: '#90caf9', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Players</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', fontWeight: 700, color: '#ff9800', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Need</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 700, color: '#ef5350', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Spent</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 700, color: '#90caf9', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Balance</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 700, color: '#64b5f6', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>🔵 Blue Left</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 700, color: '#81c784', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Max Bid</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 700, color: '#ce93d8', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Reserve</th>
-                  <th style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', fontWeight: 700, color: '#90caf9', borderBottom: '2px solid rgba(255, 255, 255, 0.2)', whiteSpace: 'nowrap' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(teamRosterData.length > 0 ? teamRosterData : teamBalances.map(team => {
-                  // Fallback calculation if teamRosterData not available
-                  const acquired = team.acquired || 0;
-                  const needed = Math.max(0, minPlayersPerTeam - acquired);
-                  const totalSpent = auctionLog.filter(log => log.team === team.name && log.status === 'Sold').reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
-                  const totalPurse = totalSpent + team.balance;
-                  const blueBudget = Math.floor((blueCapPercent / 100) * totalPurse);
-                  const blueSpent = getBlueSpentByTeam(team.name);
-                  const blueLeft = Math.max(0, blueBudget - blueSpent);
-                  const minNeeded = needed <= 1 ? 0 : (needed - 1) * 100;
-                  const maxBidUnits = Math.max(0, team.balance - minNeeded);
-                  return {
-                    name: team.name,
-                    logo: team.logo,
-                    acquired,
-                    needed,
-                    totalSpent,
-                    balance: team.balance,
-                    blueLeft,
-                    maxBidUnits,
-                    minNeeded,
-                    isAtRisk: acquired > 0 && team.balance < minNeeded && needed > 1,
-                    isFull: acquired >= maxPlayersPerTeam,
-                    isComplete: acquired >= minPlayersPerTeam,
-                  };
-                })).map((roster: { name: string; logo?: string; acquired: number; needed: number; totalSpent: number; balance: number; blueLeft: number; maxBidUnits: number; minNeeded: number; isAtRisk: boolean; isFull: boolean; isComplete: boolean }, idx: number) => {
-                  const formatCurrency = (units: number) => units >= 1000 ? `₹${(units / 1000).toFixed(2)} Cr` : `₹${(units / 10).toFixed(1)} L`;
-                  const isBlueCapLow = roster.blueLeft < (roster.blueLeft + (auctionLog.filter(log => log.team === roster.name && log.status === 'Sold').reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0))) * 0.2;
-                  const teamPlayers = getTeamPlayers(roster.name);
-                  const isExpanded = expandedTeams.has(roster.name);
-                  
-                  return (
-                    <React.Fragment key={roster.name}>
-                      <tr 
-                        style={{
-                          background: roster.isAtRisk ? 'rgba(244, 67, 54, 0.15)' : (idx % 2 === 0 ? 'rgba(255, 255, 255, 0.03)' : 'transparent'),
-                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                          cursor: roster.acquired > 0 ? 'pointer' : 'default',
-                        }}
-                        onClick={() => roster.acquired > 0 && toggleTeamExpansion(roster.name)}
-                      >
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '10px', color: '#888', width: '12px', marginRight: '4px' }}>
-                              {roster.acquired > 0 ? (isExpanded ? '▼' : '▶') : ''}
-                            </span>
-                            {roster.logo && (
-                              <img src={roster.logo} alt={roster.name} style={{ width: 'clamp(24px, 3vw, 32px)', height: 'clamp(24px, 3vw, 32px)', objectFit: 'contain', borderRadius: '4px' }} />
-                            )}
-                            <span>{roster.name}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', fontWeight: 600, color: roster.isFull ? '#9e9e9e' : (roster.isComplete ? '#81c784' : '#fff'), whiteSpace: 'nowrap' }}>
-                          {roster.acquired}/{maxPlayersPerTeam}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {roster.needed > 0 ? (
-                            <span style={{ background: '#ff9800', color: '#000', padding: '2px 8px', borderRadius: '10px', fontSize: '0.85em' }}>{roster.needed}</span>
-                          ) : (
-                            <span style={{ color: '#81c784' }}>✓</span>
-                          )}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 600, color: '#ef5350', whiteSpace: 'nowrap' }}>
-                          {formatCurrency(roster.totalSpent)}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 600, color: '#90caf9', whiteSpace: 'nowrap' }}>
-                          {formatCurrency(roster.balance)}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 600, color: isBlueCapLow ? '#ffab00' : '#64b5f6', whiteSpace: 'nowrap' }}>
-                          {formatCurrency(roster.blueLeft)}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 600, color: '#81c784', whiteSpace: 'nowrap' }}>
-                          {roster.isFull ? '—' : formatCurrency(roster.maxBidUnits)}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'right', fontWeight: 600, color: '#ce93d8', whiteSpace: 'nowrap' }}>
-                          {roster.isFull || roster.needed === 0 ? '—' : formatCurrency(roster.minNeeded)}
-                        </td>
-                        <td style={{ padding: 'clamp(0.4rem, 1.5vw, 0.8rem)', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          {roster.isAtRisk && <span style={{ background: '#f44336', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>⚠️ At Risk</span>}
-                          {roster.isFull && <span style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>🏆 Full</span>}
-                          {!roster.isFull && roster.isComplete && <span style={{ background: '#4caf50', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>✓</span>}
-                          {!roster.isAtRisk && !roster.isFull && !roster.isComplete && <span style={{ background: '#2196f3', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8em' }}>Active</span>}
-                        </td>
-                      </tr>
-                      {isExpanded && teamPlayers.length > 0 && (
-                        <tr style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-                          <td colSpan={9} style={{ padding: 0 }}>
-                            <div style={{
-                              padding: '12px 16px 12px 48px',
-                              background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06))',
-                              borderLeft: '4px solid #1976d2',
-                            }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                {teamPlayers.map((player, pIdx) => (
-                                  <div 
-                                    key={pIdx} 
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '8px',
-                                      padding: '6px 12px',
-                                      borderRadius: '20px',
-                                      fontSize: '13px',
-                                      fontWeight: 600,
-                                      background: player.category.toLowerCase() === 'blue' 
-                                        ? 'linear-gradient(135deg, #1565c0, #1976d2)' 
-                                        : player.category.toLowerCase() === 'red'
-                                        ? 'linear-gradient(135deg, #c62828, #e53935)'
-                                        : '#424242',
-                                      color: 'white',
-                                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                                    }}
-                                  >
-                                    <span style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {player.name}
-                                    </span>
-                                    <span style={{
-                                      padding: '2px 8px',
-                                      borderRadius: '10px',
-                                      background: 'rgba(255, 255, 255, 0.25)',
-                                      fontSize: '11px',
-                                      fontWeight: 700,
-                                    }}>
-                                      {formatCurrency(player.amount)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recently Sold Players - Full Width Bottom */}
+        {/* Recently Sold Players - Horizontal Scroll */}
         <div className="recently-sold-section" style={{
           background: 'rgba(255, 255, 255, 0.08)',
-          borderRadius: '1.5rem',
-          padding: 'clamp(1rem, 3vw, 2rem)',
+          borderRadius: '1rem',
+          padding: '1rem',
           backdropFilter: 'blur(10px)',
           border: '2px solid rgba(76, 175, 80, 0.3)',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          maxWidth: '100%',
-          gridColumn: '1',
-          gridRow: '5',
+          maxWidth: '1500px',
+          margin: '0 auto',
+          width: '100%',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', width: '100%' }}>
-            <h2 style={{ margin: 0, fontSize: 'clamp(1.2rem, 3vw, 1.8rem)', fontWeight: 700, color: '#81c784', flex: 1 }}>
-              ✅ Recently Sold Players ({soldPlayersList.length})
-            </h2>
-          </div>
+          <h2 style={{ margin: '0 0 0.75rem 0', fontSize: '1.3rem', fontWeight: 700, color: '#81c784' }}>
+            ✅ Recently Sold ({soldPlayersList.length})
+          </h2>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
-            gap: 'clamp(0.75rem, 2vw, 1rem)',
+            display: 'flex',
+            gap: '0.75rem',
+            overflowX: 'auto',
+            paddingBottom: '0.5rem',
+            WebkitOverflowScrolling: 'touch',
           }}>
-            {soldPlayersList.slice(0, 20).map((log, idx) => {
+            {soldPlayersList.length === 0 ? (
+              <div style={{ padding: '1rem', color: '#666' }}>No players sold yet</div>
+            ) : soldPlayersList.slice(0, 15).map((log, idx) => {
               const amount = typeof log.amount === 'number' ? log.amount : 0;
-              // Unit conversion: 1000 units = ₹1Cr, 100 units = ₹10L
-              const displayAmount = amount >= 1000 
-                ? `₹${(amount / 1000).toFixed(2)} Cr` 
-                : `₹${(amount / 10).toFixed(1)} L`;
-              const isBluePlayer = log.category && log.category.toLowerCase() === 'blue';
+              const displayAmount = amount >= 1000 ? `₹${(amount / 1000).toFixed(1)}Cr` : `₹${(amount / 10).toFixed(0)}L`;
+              const isBlue = log.category && log.category.toLowerCase() === 'blue';
               return (
                 <div key={idx} style={{
-                  background: isBluePlayer ? 'rgba(25, 118, 210, 0.15)' : 'rgba(211, 47, 47, 0.15)',
-                  border: isBluePlayer ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
-                  padding: 'clamp(0.75rem, 2vw, 1rem)',
-                  borderRadius: '0.8rem',
+                  flex: '0 0 180px',
+                  background: isBlue ? 'rgba(25, 118, 210, 0.2)' : 'rgba(211, 47, 47, 0.2)',
+                  border: isBlue ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
+                  padding: '0.75rem',
+                  borderRadius: '0.6rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.75rem',
-                  minHeight: '160px',
-                  justifyContent: 'flex-start',
+                  gap: '0.4rem',
                 }}>
-                  <div style={{ 
-                    fontSize: 'clamp(1rem, 2.5vw, 1.2rem)', 
-                    fontWeight: 700, 
-                    color: '#fff', 
-                    lineHeight: '1.3', 
-                    wordBreak: 'break-word',
-                    paddingBottom: '0.5rem',
-                    borderBottom: isBluePlayer ? '3px solid rgba(25, 118, 210, 0.7)' : '3px solid rgba(211, 47, 47, 0.7)',
-                  }}>
-                    {isBluePlayer ? '🔵' : '🔴'} {log.playerName}
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {isBlue ? '🔵' : '🔴'} {log.playerName}
                   </div>
-                  <div style={{ fontSize: 'clamp(0.95rem, 2.2vw, 1.1rem)', color: '#b0d4f1', lineHeight: '1.3' }}>To: <b style={{ color: '#fff' }}>{log.team}</b></div>
-                  <div style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', fontWeight: 900, color: '#81c784', marginTop: 'auto', paddingTop: '0.5rem' }}>{displayAmount}</div>
-                  <div style={{ fontSize: 'clamp(0.85rem, 1.8vw, 1rem)', color: '#aaa' }}>Round {log.round}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#b0d4f1' }}>→ {log.team}</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#81c784' }}>{displayAmount}</div>
                 </div>
               );
             })}
           </div>
-          {soldPlayersList.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 'clamp(1.5rem, 4vw, 2rem)', color: '#666', fontSize: 'clamp(1rem, 2.5vw, 1.2rem)' }}>
-              No players sold yet
-            </div>
-          )}
         </div>
 
-        {/* Unsold Players - Coming Back in Round 2 */}
-        <div className="unsold-players-section" style={{
-          background: 'rgba(255, 255, 255, 0.08)',
-          borderRadius: '1.5rem',
-          padding: 'clamp(1rem, 3vw, 2rem)',
-          backdropFilter: 'blur(10px)',
-          border: '2px solid rgba(255, 152, 0, 0.3)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          maxWidth: '100%',
-          gridColumn: '1',
-          gridRow: '6',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', width: '100%' }}>
-            <h2 style={{ margin: 0, fontSize: 'clamp(1.2rem, 3vw, 1.8rem)', fontWeight: 700, color: '#ffb74d', flex: 1 }}>
-              ⏳ Unsold Players - Round 2 ({auctionLog.filter(log => log.status === 'Unsold').length})
-            </h2>
-          </div>
+        {/* Unsold Players - Compact horizontal section */}
+        {unsoldPlayersList.length > 0 && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
-            gap: 'clamp(0.75rem, 2vw, 1rem)',
+            background: 'rgba(255, 255, 255, 0.08)',
+            borderRadius: '1rem',
+            padding: '1rem',
+            backdropFilter: 'blur(10px)',
+            border: '2px solid rgba(255, 152, 0, 0.3)',
+            maxWidth: '1500px',
+            margin: '0 auto',
+            width: '100%',
           }}>
-            {unsoldPlayersList.slice(0, 20).map((log, idx) => {
-              return (
+            <h2 style={{ margin: '0 0 0.75rem 0', fontSize: '1.3rem', fontWeight: 700, color: '#ffb74d' }}>
+              ⏳ Unsold - Round 2 ({unsoldPlayersList.length})
+            </h2>
+            <div style={{
+              display: 'flex',
+              gap: '0.75rem',
+              overflowX: 'auto',
+              paddingBottom: '0.5rem',
+              WebkitOverflowScrolling: 'touch',
+            }}>
+              {unsoldPlayersList.slice(0, 15).map((log, idx) => (
                 <div key={idx} style={{
-                  background: 'rgba(255, 152, 0, 0.15)',
-                  border: '1px solid rgba(255, 152, 0, 0.3)',
-                  padding: 'clamp(0.75rem, 2vw, 1rem)',
-                  borderRadius: '0.8rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                  minHeight: '140px',
-                  justifyContent: 'flex-start',
+                  flex: '0 0 150px',
+                  background: 'rgba(255, 152, 0, 0.2)',
+                  border: '1px solid rgba(255, 152, 0, 0.4)',
+                  padding: '0.6rem',
+                  borderRadius: '0.5rem',
                 }}>
-                  <div style={{ 
-                    fontSize: 'clamp(0.9rem, 2vw, 1rem)', 
-                    fontWeight: 700, 
-                    color: '#fff', 
-                    lineHeight: '1.3', 
-                    wordBreak: 'break-word',
-                    paddingBottom: '0.5rem',
-                    borderBottom: '2px solid rgba(255, 152, 0, 0.5)',
-                  }}>⏳ {log.playerName}</div>
-                  <div style={{ fontSize: 'clamp(0.85rem, 2vw, 1rem)', color: '#ffb74d', lineHeight: '1.3' }}>Attempt: <b>{log.attempt}</b></div>
-                  <div style={{ fontSize: 'clamp(0.75rem, 1.5vw, 0.85rem)', color: '#999', marginTop: 'auto' }}>Round {log.round}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    ⏳ {log.playerName}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#ffb74d', marginTop: '0.25rem' }}>Attempt {log.attempt}</div>
                 </div>
-              );
-            })}
-          </div>
-          {unsoldPlayersList.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 'clamp(1.5rem, 4vw, 2rem)', color: '#666', fontSize: 'clamp(1rem, 2.5vw, 1.2rem)' }}>
-              No unsold players yet
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </>
   );
