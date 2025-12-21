@@ -348,6 +348,13 @@ body {
   margin: 0;
 }
 
+/* Bid Controls Grid - 2 column layout for bid input and quick add */
+.bid-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 /* Team Selection */
 .team-selection label,
 .bid-input-section label,

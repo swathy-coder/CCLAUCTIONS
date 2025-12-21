@@ -960,7 +960,7 @@ export default function AudienceView({
           </div>
         </div>
 
-        {/* Recently Sold Players - Horizontal Scroll */}
+        {/* Recently Sold Players - Vertical Scroll (All Players) */}
         <div className="recently-sold-section" style={{
           background: 'rgba(255, 255, 255, 0.08)',
           borderRadius: '1rem',
@@ -977,33 +977,34 @@ export default function AudienceView({
           </h2>
           <div style={{
             display: 'flex',
-            gap: '0.75rem',
-            overflowX: 'auto',
-            paddingBottom: '0.5rem',
-            WebkitOverflowScrolling: 'touch',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            maxHeight: '400px',
+            overflowY: 'auto',
+            paddingRight: '0.5rem',
           }}>
             {soldPlayersList.length === 0 ? (
               <div style={{ padding: '1rem', color: '#666' }}>No players sold yet</div>
-            ) : soldPlayersList.slice(0, 15).map((log, idx) => {
+            ) : soldPlayersList.map((log, idx) => {
               const amount = typeof log.amount === 'number' ? log.amount : 0;
               const displayAmount = formatCurrency(amount);
               const isBlue = log.category && log.category.toLowerCase() === 'blue';
               return (
                 <div key={idx} style={{
-                  flex: '0 0 180px',
-                  background: isBlue ? 'rgba(25, 118, 210, 0.2)' : 'rgba(211, 47, 47, 0.2)',
-                  border: isBlue ? '2px solid rgba(25, 118, 210, 0.5)' : '2px solid rgba(211, 47, 47, 0.5)',
-                  padding: '0.75rem',
-                  borderRadius: '0.6rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.4rem',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto auto',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  background: isBlue ? 'rgba(25, 118, 210, 0.15)' : 'rgba(211, 47, 47, 0.15)',
+                  border: isBlue ? '1px solid rgba(25, 118, 210, 0.4)' : '1px solid rgba(211, 47, 47, 0.4)',
+                  padding: '0.6rem 1rem',
+                  borderRadius: '0.5rem',
                 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {isBlue ? '🔵' : '🔴'} {log.playerName}
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#b0d4f1' }}>→ {log.team}</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#81c784' }}>{displayAmount}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#b0d4f1', whiteSpace: 'nowrap' }}>→ {log.team}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 900, color: '#81c784', whiteSpace: 'nowrap' }}>{displayAmount}</div>
                 </div>
               );
             })}

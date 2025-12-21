@@ -89,6 +89,7 @@ interface AuctionSetupData {
   bidButton1?: number;
   bidButton2?: number;
   bidButton3?: number;
+  bidButton4?: number;
 }
 
 export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetupData & {auctionId: string}) => void }) {
@@ -298,8 +299,9 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
   
   // Quick bid button values (configurable by auctioneer)
   const [bidButton1, setBidButton1] = useState(100000);   // Default: +1L
-  const [bidButton2, setBidButton2] = useState(1000000);  // Default: +10L
-  const [bidButton3, setBidButton3] = useState(10000000); // Default: +1Cr
+  const [bidButton2, setBidButton2] = useState(500000);   // Default: +5L
+  const [bidButton3, setBidButton3] = useState(1000000);  // Default: +10L
+  const [bidButton4, setBidButton4] = useState(10000000); // Default: +1Cr
   
   const [resumeData, setResumeData] = useState<ResumeData | undefined>(undefined);
   const [playerImages, setPlayerImages] = useState<{[id: string]: string}>({});
@@ -1123,43 +1125,51 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
         {/* Quick Bid Buttons Configuration */}
         <div style={{marginTop: 16, padding: '16px', background: '#f5f5f5', borderRadius: '8px', border: '1px solid #ddd'}}>
           <label style={{fontWeight: 600, color: '#333'}}>⚡ Quick Bid Buttons:</label>
-          <div style={{fontSize: '0.85rem', color: '#666', marginBottom: 12}}>Configure the 3 quick-add buttons used during bidding. Enter exact values (e.g., 100000 = 1 Lakh).</div>
-          <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
+          <div style={{fontSize: '0.85rem', color: '#666', marginBottom: 12}}>Configure the 4 quick-add buttons used during bidding. Use negative values for decrease buttons (e.g., -100000 = -1 Lakh).</div>
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
             <div>
               <label style={{fontSize: '0.9rem'}}>Button 1:</label>
               <input
                 type="number"
                 value={bidButton1}
                 onChange={e => setBidButton1(Number(e.target.value) || 100000)}
-                min="1000"
                 step="10000"
                 style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
               />
-              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton1)}</span>
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: bidButton1 >= 0 ? '#4caf50' : '#f44336'}}>{bidButton1 >= 0 ? '+' : ''}{formatCurrency(bidButton1)}</span>
             </div>
             <div>
               <label style={{fontSize: '0.9rem'}}>Button 2:</label>
               <input
                 type="number"
                 value={bidButton2}
-                onChange={e => setBidButton2(Number(e.target.value) || 1000000)}
-                min="1000"
+                onChange={e => setBidButton2(Number(e.target.value) || 500000)}
                 step="100000"
                 style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
               />
-              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton2)}</span>
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: bidButton2 >= 0 ? '#4caf50' : '#f44336'}}>{bidButton2 >= 0 ? '+' : ''}{formatCurrency(bidButton2)}</span>
             </div>
             <div>
               <label style={{fontSize: '0.9rem'}}>Button 3:</label>
               <input
                 type="number"
                 value={bidButton3}
-                onChange={e => setBidButton3(Number(e.target.value) || 10000000)}
-                min="1000"
+                onChange={e => setBidButton3(Number(e.target.value) || 1000000)}
+                step="100000"
+                style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
+              />
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: bidButton3 >= 0 ? '#4caf50' : '#f44336'}}>{bidButton3 >= 0 ? '+' : ''}{formatCurrency(bidButton3)}</span>
+            </div>
+            <div>
+              <label style={{fontSize: '0.9rem'}}>Button 4:</label>
+              <input
+                type="number"
+                value={bidButton4}
+                onChange={e => setBidButton4(Number(e.target.value) || 10000000)}
                 step="1000000"
                 style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
               />
-              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton3)}</span>
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: bidButton4 >= 0 ? '#4caf50' : '#f44336'}}>{bidButton4 >= 0 ? '+' : ''}{formatCurrency(bidButton4)}</span>
             </div>
           </div>
         </div>
@@ -1347,6 +1357,7 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
               bidButton1,
               bidButton2,
               bidButton3,
+              bidButton4,
             });
           }}
           disabled={!players.length || !teams.length || auctionPassword.length < 4}

@@ -56,6 +56,7 @@ interface AuctionScreenProps {
   bidButton1?: number; // Custom quick bid button 1
   bidButton2?: number; // Custom quick bid button 2
   bidButton3?: number; // Custom quick bid button 3
+  bidButton4?: number; // Custom quick bid button 4
 }
 
 // Helper: Snap bid to nearest 10000 (10k) multiple
@@ -98,8 +99,9 @@ function AuctionScreen({
   blueCapPercent = 65,
   passwordHash,
   bidButton1 = 100000,   // Default: +1L
-  bidButton2 = 1000000,  // Default: +10L  
-  bidButton3 = 10000000  // Default: +1Cr
+  bidButton2 = 500000,   // Default: +5L  
+  bidButton3 = 1000000,  // Default: +10L
+  bidButton4 = 10000000  // Default: +1Cr
 }: AuctionScreenProps) {
   console.log('='.repeat(80));
   console.log('🎬 AuctionScreen MOUNTED');
@@ -692,10 +694,16 @@ function AuctionScreen({
     setBidError('');
   };
 
-  // Quick add buttons
+  // Quick add buttons - supports positive and negative values
   const handleQuickAdd = (amount: number) => {
-    setBidUnits(prev => prev + amount);
+    setBidUnits(prev => Math.max(0, prev + amount)); // Prevent negative bids
     setBidError('');
+  };
+  
+  // Get the lowest positive quick add value for step increment
+  const getMinPositiveQuickAdd = (): number => {
+    const positiveValues = [bidButton1, bidButton2, bidButton3, bidButton4].filter(v => v > 0);
+    return positiveValues.length > 0 ? Math.min(...positiveValues) : 100000; // Default to 1L
   };
 
   // Snap bid to nearest multiple
@@ -1337,42 +1345,64 @@ function AuctionScreen({
               </div>
             </div>
 
-            {/* Bid Amount */}
-            <div className="bid-input-section">
-              <label htmlFor="bid-input">Bid Amount (Units)</label>
-              <input
-                id="bid-input"
-                type="number"
-                value={bidUnits}
-                onChange={(e) => handleBidChange(e.target.value)}
-                className="bid-input"
-                placeholder="0"
-                min="0"
-                step="100"
-              />
-              <div className="bid-display">
-                {bidUnits > 0 ? formatBidCurrency(bidUnits) : '₹0'}
+            {/* Bid Controls - 2 Column Layout */}
+            <div className="bid-controls-grid">
+              {/* Bid Amount */}
+              <div className="bid-input-section">
+                <label htmlFor="bid-input">Bid Amount</label>
+                <input
+                  id="bid-input"
+                  type="number"
+                  value={bidUnits}
+                  onChange={(e) => handleBidChange(e.target.value)}
+                  className="bid-input"
+                  placeholder="0"
+                  min="0"
+                  step={getMinPositiveQuickAdd()}
+                />
+                <div className="bid-display">
+                  {bidUnits > 0 ? formatBidCurrency(bidUnits) : '₹0'}
+                </div>
+                {bidUnits % 100 !== 0 && bidUnits > 0 && (
+                  <button className="btn-snap" onClick={handleSnapBid}>
+                    Snap to {snapToMultiple(bidUnits)} units
+                  </button>
+                )}
               </div>
-              {bidUnits % 100 !== 0 && bidUnits > 0 && (
-                <button className="btn-snap" onClick={handleSnapBid}>
-                  Snap to {snapToMultiple(bidUnits)} units
-                </button>
-              )}
-            </div>
 
-            {/* Quick Add */}
-            <div className="quick-add-section">
-              <label>Quick Add</label>
-              <div className="quick-add-buttons">
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton1)}>
-                  +{formatCurrency(bidButton1).replace('₹', '')}
-                </button>
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton2)}>
-                  +{formatCurrency(bidButton2).replace('₹', '')}
-                </button>
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton3)}>
-                  +{formatCurrency(bidButton3).replace('₹', '')}
-                </button>
+              {/* Quick Add/Subtract */}
+              <div className="quick-add-section">
+                <label>Quick Adjust</label>
+                <div className="quick-add-buttons">
+                  <button 
+                    className={`btn-quick-add ${bidButton1 < 0 ? 'btn-subtract' : ''}`} 
+                    onClick={() => handleQuickAdd(bidButton1)}
+                    style={bidButton1 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                  >
+                    {bidButton1 >= 0 ? '+' : ''}{formatCurrency(bidButton1).replace('₹', '')}
+                  </button>
+                  <button 
+                    className={`btn-quick-add ${bidButton2 < 0 ? 'btn-subtract' : ''}`} 
+                    onClick={() => handleQuickAdd(bidButton2)}
+                    style={bidButton2 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                  >
+                    {bidButton2 >= 0 ? '+' : ''}{formatCurrency(bidButton2).replace('₹', '')}
+                  </button>
+                  <button 
+                    className={`btn-quick-add ${bidButton3 < 0 ? 'btn-subtract' : ''}`} 
+                    onClick={() => handleQuickAdd(bidButton3)}
+                    style={bidButton3 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                  >
+                    {bidButton3 >= 0 ? '+' : ''}{formatCurrency(bidButton3).replace('₹', '')}
+                  </button>
+                  <button 
+                    className={`btn-quick-add ${bidButton4 < 0 ? 'btn-subtract' : ''}`} 
+                    onClick={() => handleQuickAdd(bidButton4)}
+                    style={bidButton4 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                  >
+                    {bidButton4 >= 0 ? '+' : ''}{formatCurrency(bidButton4).replace('₹', '')}
+                  </button>
+                </div>
               </div>
             </div>
 
