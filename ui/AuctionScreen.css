@@ -118,9 +118,9 @@ body {
    =================================== */
 .auction-grid {
   display: grid;
-  grid-template-columns: 1fr 1.3fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -129,11 +129,9 @@ body {
 /* Card Base Style */
 .card {
   background: white;
-  border-radius: 12px;
+  border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 16px;
-  min-height: 400px;
-  max-height: 450px;
+  padding: 12px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -143,18 +141,19 @@ body {
    =================================== */
 .player-image-card {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 16px;
+  align-items: flex-start;
 }
 
 .photo-container {
   position: relative;
-  width: 100%;
-  max-width: 300px;
-  height: 400px;
+  width: 200px;
+  min-width: 200px;
+  height: 260px;
   border-radius: 8px;
   overflow: hidden;
-  margin: 0 auto;
+  flex-shrink: 0;
 }
 
 .sold-overlay {
@@ -171,12 +170,12 @@ body {
 }
 
 .sold-text {
-  font-size: 48px;
+  font-size: 32px;
   font-weight: 900;
   color: white;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
   transform: rotate(-45deg);
-  letter-spacing: 3px;
+  letter-spacing: 2px;
 }
 
 /* Frozen overlay for already sold players */
@@ -195,18 +194,18 @@ body {
 }
 
 .frozen-text {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 900;
   color: #fff;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  letter-spacing: 3px;
+  letter-spacing: 2px;
 }
 
 .frozen-subtext {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #ddd;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .player-photo {
@@ -232,30 +231,33 @@ body {
 }
 
 .player-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
 .stat-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
-  color: #555;
+  color: #888;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  min-width: 70px;
 }
 
 .stat-value {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
 }
@@ -266,12 +268,12 @@ body {
 .player-info-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   overflow: hidden;
 }
 
 .player-name {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.2;
@@ -281,27 +283,27 @@ body {
 
 .player-meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .category-badge {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #4caf50;
   color: white;
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .specialization {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #e0e0e0;
   color: #1a1a1a;
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -309,15 +311,15 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px;
+  padding: 8px;
   background: #f8f9fa;
-  border-radius: 8px;
-  max-height: 200px;
+  border-radius: 6px;
+  max-height: 120px;
 }
 
 .player-description p {
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.5;
   color: #222;
   margin: 0;
   word-wrap: break-word;
@@ -329,18 +331,18 @@ body {
    =================================== */
 .control-pane {
   position: sticky;
-  top: 16px;
+  top: 12px;
   align-self: start;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: calc(100vh - 32px);
+  gap: 10px;
+  max-height: calc(100vh - 24px);
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .control-pane h3 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #1a1a1a;
   margin: 0;
@@ -351,18 +353,18 @@ body {
 .bid-input-section label,
 .quick-add-section label {
   display: block;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #666;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .team-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
   max-width: 100%;
   overflow: hidden;
 }
@@ -372,17 +374,17 @@ body {
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 4px;
+  padding: 6px 8px;
   border: 2px solid #e0e0e0;
   background: white;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: #333;
-  min-height: 38px;
+  min-height: 32px;
   max-width: 100%;
   overflow: hidden;
 }
@@ -439,15 +441,15 @@ body {
 }
 
 .team-logo-small {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
   flex-shrink: 0;
 }
 
 .team-full-name {
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -465,16 +467,16 @@ body {
 .bid-input-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .bid-input {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 18px;
+  padding: 8px 12px;
+  font-size: 16px;
   font-weight: 600;
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 6px;
   text-align: center;
   transition: all 0.2s;
 }
@@ -487,21 +489,21 @@ body {
 
 .bid-display {
   text-align: center;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: #4caf50;
-  padding: 8px;
+  padding: 6px;
   background: #f1f8f4;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .btn-snap {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #ff9800;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -514,18 +516,18 @@ body {
 
 /* Quick Add Buttons */
 .quick-add-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .btn-quick-add {
   width: 100%;
-  padding: 12px;
+  padding: 8px;
   background: #e3f2fd;
   border: 2px solid #1976d2;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: #1976d2;
   cursor: pointer;
@@ -533,7 +535,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .btn-quick-add:hover {
@@ -544,18 +546,18 @@ body {
 }
 
 .btn-quick-add small {
-  font-size: 11px;
+  font-size: 10px;
   opacity: 0.8;
 }
 
 /* Error Display */
 .bid-error {
-  padding: 12px;
+  padding: 8px;
   background: #fff3e0;
   border: 2px solid #ff9800;
-  border-radius: 8px;
+  border-radius: 6px;
   color: #e65100;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-align: center;
 }
@@ -564,16 +566,16 @@ body {
 .action-buttons {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   margin-top: auto;
 }
 
 .btn-action {
   width: 100%;
-  padding: 14px 20px;
+  padding: 10px 16px;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
