@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './AudienceView.css';
 import type { Player, Team } from './AuctionScreen';
-import { subscribeToAuctionUpdates, loadAuctionStateOnline } from '../src/firebase';
+import { subscribeToAuctionUpdates } from '../src/firebase';
 import LogoImage from '../LOGO 2.png';
 
 type AuctionLogEntry = {
@@ -148,46 +148,12 @@ export default function AudienceView({
     return () => clearInterval(timer);
   }, []);
 
-  // Poll localStorage for updates (for more frequent updates than Firebase)
-  useEffect(() => {
-    if (effectiveAuctionId) {
-      const pollInterval = setInterval(() => {
-        try {
-          const stored = localStorage.getItem(`auction_${effectiveAuctionId}`);
-          if (stored) {
-            const data = JSON.parse(stored);
-            setLiveData(data);
-            console.log('📡 AudienceView polled localStorage - got', data.auctionLog?.length || 0, 'log entries, currentPlayer:', data.currentPlayer?.name);
-          }
-        } catch (e) {
-          console.error('AudienceView poll error:', e);
-        }
-      }, 200); // Poll every 200ms for responsive updates
-
-      return () => clearInterval(pollInterval);
-    }
-  }, [effectiveAuctionId]);
-
-  // Poll Firebase for updates (for cross-device sync when localStorage is stale)
-  useEffect(() => {
-    if (effectiveAuctionId) {
-      let pollCount = 0;
-      const firebasePollInterval = setInterval(async () => {
-        try {
-          const data = await loadAuctionStateOnline(effectiveAuctionId);
-          if (data) {
-            pollCount++;
-            console.log(`🔥 AudienceView Firebase poll #${pollCount} - auctionId=${effectiveAuctionId} - got ${(data as any)?.auctionLog?.length || 0} log entries, currentPlayer: ${(data as any)?.currentPlayer?.name}, Thunderbolts balance: ${(data as any)?.teamBalances?.find((t: any) => t.name === 'Thunderbolts')?.balance} units`);
-            setLiveData(data as typeof liveData);
-          }
-        } catch (e) {
-          // Silently fail - Firebase polling is backup
-        }
-      }, 1000); // Poll Firebase every 1 second for less bandwidth
-
-      return () => clearInterval(firebasePollInterval);
-    }
-  }, [effectiveAuctionId]);
+  // REMOVED: localStorage polling (200ms) - was causing lag with 100+ viewers
+  // localStorage only works same-device anyway, not useful for cross-device audience
+  
+  // REMOVED: Firebase polling (1 second) - was causing 100 reads/second with 100 viewers
+  // The Firebase subscription (onValue) above handles real-time updates properly
+  // Polling was competing with subscription and causing 30+ second lag
   
   // Use live data if available, otherwise use props
   const currentPlayer = liveData?.currentPlayer ?? propCurrentPlayer;
