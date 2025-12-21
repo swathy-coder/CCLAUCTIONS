@@ -165,17 +165,48 @@ function AuctionScreen({
   });
   console.log('orderedPlayers state set to:', orderedPlayers?.length);
 
-  // Team state - values are stored and used exactly as entered (no unit conversion)
+  // Store original purses (initial balances before any bids) - NEVER changes after initialization
+  const [originalPurses] = useState<Record<string, number>>(() => {
+    const purses: Record<string, number> = {};
+    teams.forEach(t => {
+      // Use the team's initial balance (from setup or default)
+      purses[t.name] = t.balance && t.balance > 0 ? t.balance : defaultBalance;
+    });
+    console.log('💰 Original purses initialized:', purses);
+    return purses;
+  });
+
+  // Team state - RECALCULATE from auctionLog on resume (log is the source of truth)
   const [teamBalances, setTeamBalances] = useState(() => {
-    if (resumeData?.balances) {
-      const initialized = teams.map(t => ({
-        ...t,
-        balance: resumeData.balances[t.name]?.balance ?? (t.balance && t.balance > 0 ? t.balance : defaultBalance),
-        acquired: resumeData.balances[t.name]?.acquired ?? 0
-      }));
-      console.log('📊 AuctionScreen init - resumeData found:');
+    if (resumeData?.log && resumeData.log.length > 0) {
+      // RECALCULATE from auction log - this is the source of truth
+      const spentByTeam: Record<string, number> = {};
+      const acquiredByTeam: Record<string, number> = {};
+      
+      resumeData.log.forEach(entry => {
+        if (entry.status === 'Sold' && entry.team && typeof entry.amount === 'number') {
+          spentByTeam[entry.team] = (spentByTeam[entry.team] || 0) + entry.amount;
+          acquiredByTeam[entry.team] = (acquiredByTeam[entry.team] || 0) + 1;
+        }
+      });
+      
+      const initialized = teams.map(t => {
+        const originalPurse = t.balance && t.balance > 0 ? t.balance : defaultBalance;
+        const spent = spentByTeam[t.name] || 0;
+        const acquired = acquiredByTeam[t.name] || 0;
+        const balance = originalPurse - spent;
+        
+        return {
+          ...t,
+          balance,
+          acquired
+        };
+      });
+      
+      console.log('📊 AuctionScreen init - RECALCULATED from auctionLog:');
       initialized.forEach(t => {
-        console.log(`   ${t.name}: balance=${t.balance} (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
+        const spent = spentByTeam[t.name] || 0;
+        console.log(`   ${t.name}: original=${formatCurrency(t.balance + spent)}, spent=${formatCurrency(spent)}, balance=${formatCurrency(t.balance)}, acquired=${t.acquired}`);
       });
       return initialized;
     }
@@ -432,10 +463,9 @@ function AuctionScreen({
     return blueSpent;
   }, [auctionLog, players]);
 
-  // Get the original team purse (initial balance)
+  // Get the original team purse (initial balance) - uses stored originalPurses, not current balance
   const getOriginalPurse = (teamName: string): number => {
-    const team = teams.find(t => t.name === teamName);
-    return team?.balance || 10000; // Default 10 Cr
+    return originalPurses[teamName] || defaultBalance || 10000000; // Default 1Cr if not found
   };
 
   // Calculate max blue bid allowed for a team
@@ -541,12 +571,13 @@ function AuctionScreen({
     const auctionState = {
       auctionId, // Include auction ID for recovery
       passwordHash, // Include password hash for resume authentication
+      originalPurses, // CRITICAL: Store original purses for balance recalculation on resume
       currentPlayer: orderedPlayers[playerIdx] || null,
       soldPlayers: auctionLog.filter(l => l.status === 'Sold'),
       teams: teamBalances,
       round,
       auctionComplete,
-      auctionLog,
+      auctionLog, // This is the SOURCE OF TRUTH for all derived data
       teamBalances,
       teamRosterData, // Pre-calculated roster data
       minPlayersPerTeam,
@@ -562,35 +593,14 @@ function AuctionScreen({
     console.log('💾 Syncing auction state - auctionId:', auctionId, 'auctionLog entries:', auctionLog.length, 'currentPlayer:', auctionState.currentPlayer?.name, 'hasPhoto:', !!auctionState.currentPlayer?.photo, 'Sample log entry:', auctionLog[0]);
     console.log('📤 Device saving to Firebase: Thunderbolts balance=', teamBalances.find(t => t.name === 'Thunderbolts')?.balance, 'units');
     
-    // Save to Firebase (with error handling)
+    // Save to Firebase ONLY (Firebase is the single source of truth)
     saveAuctionStateOnline(auctionId, auctionState)
       .then(() => console.log('✅ [SYNC SUCCESS] Firebase saved for auctionId:', auctionId))
       .catch(err => console.error('❌ [SYNC ERROR] Failed to save to Firebase:', auctionId, err));
     
-    try {
-      localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));
-      console.log('✅ Saved to localStorage with', auctionLog.length, 'auction log entries');
-    } catch (e) {
-      if (e instanceof Error && e.name === 'QuotaExceededError') {
-        console.warn('⚠️ localStorage quota exceeded, relying on Firebase only');
-        // Try to clear old auction data to free up space
-        const keys = Object.keys(localStorage);
-        for (const key of keys) {
-          if (key.startsWith('auction_') && key !== `auction_${auctionId}`) {
-            localStorage.removeItem(key);
-          }
-        }
-        // Try again after cleanup
-        try {
-          localStorage.setItem(`auction_${auctionId}`, JSON.stringify(auctionState));
-        } catch {
-          console.error('⚠️ Could not save to localStorage even after cleanup, relying on Firebase');
-        }
-      } else {
-        throw e;
-      }
-    }
-  }, [playerIdx, auctionLog, teamBalances, round, auctionComplete, auctionId, orderedPlayers, showSoldOverlay, lastSoldTeam, lastSoldAmount, blueCapPercent, getBlueSpentByTeam, minPlayersPerTeam, maxPlayersPerTeam]);
+    // NOTE: localStorage is NOT used for auction state - Firebase is the only source of truth
+    // This prevents stale/corrupted local data from overriding correct Firebase data
+  }, [playerIdx, auctionLog, teamBalances, round, auctionComplete, auctionId, orderedPlayers, showSoldOverlay, lastSoldTeam, lastSoldAmount, blueCapPercent, getBlueSpentByTeam, minPlayersPerTeam, maxPlayersPerTeam, originalPurses]);
 
   // Open audience view in new tab on mount
   useEffect(() => {

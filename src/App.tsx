@@ -217,24 +217,49 @@ function App() {
       return player;
     }));
     
-    console.log('âœ… Loaded photos, setting up auction state');
+    console.log('✅ Loaded photos, setting up auction state');
     
-    // Build team balances from data
-    const teamBalances = data.teamBalances || [];
-    const teams = teamBalances.map((t: any) => ({
-      name: t.name,
-      balance: t.balance,
-      logo: t.logo || '',
-      acquired: t.acquired || 0
-    }));
+    // Get auction log (SOURCE OF TRUTH for all derived data)
+    const auctionLog = data.auctionLog || [];
     
-    // Build resume data
+    // Get original purses from Firebase (or calculate from teamBalances + spent)
+    const originalPurses: Record<string, number> = data.originalPurses || {};
+    const teamBalancesRaw = data.teamBalances || [];
+    
+    // RECALCULATE spent and acquired from auctionLog
+    const spentByTeam: Record<string, number> = {};
+    const acquiredByTeam: Record<string, number> = {};
+    
+    auctionLog.forEach((entry: any) => {
+      if (entry.status === 'Sold' && entry.team && typeof entry.amount === 'number') {
+        spentByTeam[entry.team] = (spentByTeam[entry.team] || 0) + entry.amount;
+        acquiredByTeam[entry.team] = (acquiredByTeam[entry.team] || 0) + 1;
+      }
+    });
+    
+    // Build teams with ORIGINAL purses (AuctionScreen will recalculate current balance from log)
+    const teams = teamBalancesRaw.map((t: any) => {
+      // Get original purse: from saved originalPurses, or from current balance + spent (fallback)
+      const spent = spentByTeam[t.name] || 0;
+      const originalPurse = originalPurses[t.name] || (t.balance + spent) || 100000000; // Default 10Cr
+      
+      console.log(`📊 Resume team ${t.name}: originalPurse=${originalPurse}, spent=${spent}`);
+      
+      return {
+        name: t.name,
+        balance: originalPurse, // Pass ORIGINAL purse - AuctionScreen will recalculate from log
+        logo: t.logo || '',
+        acquired: 0 // Will be recalculated in AuctionScreen from log
+      };
+    });
+    
+    // Build resume data - pass the log so AuctionScreen can recalculate
     const resumeData: ResumeData = {
       round: data.round || 1,
       playerIdx: data.playerIdx || 0,
       sequence: playersWithPhotos.map((p: any) => p.name),
-      balances: Object.fromEntries(teams.map((t: any) => [t.name, { balance: t.balance, acquired: t.acquired || 0 }])),
-      log: data.auctionLog || []
+      balances: {}, // Not used anymore - AuctionScreen recalculates from log
+      log: auctionLog // This is the source of truth
     };
     
     setSetup({
@@ -244,7 +269,7 @@ function App() {
       bidLog: [],
       playerImages: {},
       teamLogos: {},
-      defaultBalance: 10000,
+      defaultBalance: 100000000, // 10Cr default
       resumeData,
       auctionId,
       minPlayersPerTeam: data.minPlayersPerTeam || 6,
