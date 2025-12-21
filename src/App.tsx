@@ -167,15 +167,16 @@ function App() {
     }
   };
   
-  // Resume password check handler (auction-specific)
+  // Resume password check handler (auction-specific OR master password)
   const handleResumePasswordSubmit = async () => {
     if (!pendingResumeData) return;
     
     const inputHash = await hashPassword(resumePasswordInput);
     const storedHash = pendingResumeData.passwordHash;
     
-    if (inputHash === storedHash) {
-      console.log('âœ… Resume password verified, loading auction...');
+    // Accept either the auction-specific password OR the master admin password
+    if (inputHash === storedHash || inputHash === ADMIN_HASH) {
+      console.log('✅ Resume password verified, loading auction...');
       await performAutoResume(pendingResumeData);
       setShowResumePasswordPrompt(false);
       setResumePasswordError('');
