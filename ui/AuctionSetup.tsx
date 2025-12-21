@@ -14,6 +14,24 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Helper: Format currency - displays exact values with readable suffixes
+// 100 → ₹100, 1000 → ₹1k, 10000 → ₹10k, 100000 → ₹1L, 1000000 → ₹10L, 10000000 → ₹1Cr
+function formatCurrency(value: number): string {
+  if (value >= 10000000) {
+    const crores = value / 10000000;
+    return crores % 1 === 0 ? `₹${crores}Cr` : `₹${crores.toFixed(1)}Cr`;
+  }
+  if (value >= 100000) {
+    const lakhs = value / 100000;
+    return lakhs % 1 === 0 ? `₹${lakhs}L` : `₹${lakhs.toFixed(1)}L`;
+  }
+  if (value >= 1000) {
+    const k = value / 1000;
+    return k % 1 === 0 ? `₹${k}k` : `₹${k.toFixed(1)}k`;
+  }
+  return `₹${value}`;
+}
+
 const TOURNAMENT_TYPES = [
   'Men’s CCL',
   'Women’s CCL',
@@ -68,6 +86,9 @@ interface AuctionSetupData {
   maxPlayersPerTeam?: number;
   blueCapPercent?: number;
   passwordHash?: string; // SHA-256 hash of auction password for resume protection
+  bidButton1?: number;
+  bidButton2?: number;
+  bidButton3?: number;
 }
 
 export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetupData & {auctionId: string}) => void }) {
@@ -274,6 +295,12 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
   const [minPlayersPerTeam, setMinPlayersPerTeam] = useState(6);
   const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(12);
   const [blueCapPercent, setBlueCapPercent] = useState(65);
+  
+  // Quick bid button values (configurable by auctioneer)
+  const [bidButton1, setBidButton1] = useState(100000);   // Default: +1L
+  const [bidButton2, setBidButton2] = useState(1000000);  // Default: +10L
+  const [bidButton3, setBidButton3] = useState(10000000); // Default: +1Cr
+  
   const [resumeData, setResumeData] = useState<ResumeData | undefined>(undefined);
   const [playerImages, setPlayerImages] = useState<{[id: string]: string}>({});
   const [teamLogos, setTeamLogos] = useState<{[name: string]: string}>({});
@@ -707,17 +734,15 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
       const balances = teams.map(t => t.balance);
       const uniqueBalances = [...new Set(balances)];
       if (uniqueBalances.length > 1) {
-        const balanceStr = uniqueBalances.map(b => b >= 1000 ? `${(b / 1000).toFixed(2)} Cr` : `${(b / 10).toFixed(1)} L`).join(', ');
+        const balanceStr = uniqueBalances.map(b => formatCurrency(b)).join(', ');
         errors.push(`⚠️ Teams have different budgets: ${balanceStr}. This may create unfair advantage.`);
       }
       
       // Check if total team budget is reasonable for number of players
       const totalBudget = teams.reduce((sum, t) => sum + t.balance, 0);
       const avgPlayerPrice = totalBudget / players.length;
-      if (avgPlayerPrice < 100) { // Less than 10L per player (100 units)
-        const totalBudgetDisplay = totalBudget >= 1000 ? `${(totalBudget / 1000).toFixed(2)} Cr` : `${(totalBudget / 10).toFixed(1)} L`;
-        const avgDisplay = avgPlayerPrice >= 1000 ? `${(avgPlayerPrice / 1000).toFixed(2)} Cr` : `${(avgPlayerPrice / 10).toFixed(1)} L`;
-        errors.push(`⚠️ Total budget (${totalBudgetDisplay}) seems low for ${players.length} players. Average ~${avgDisplay} per player.`);
+      if (avgPlayerPrice < 1000000) { // Less than 10L per player
+        errors.push(`⚠️ Total budget (${formatCurrency(totalBudget)}) seems low for ${players.length} players. Average ~${formatCurrency(avgPlayerPrice)} per player.`);
       }
     }
     
@@ -1043,7 +1068,7 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
                     }}
                   />
                   <span style={{fontSize: '0.8rem', color: '#666', minWidth: '60px'}}>
-                    = ₹{team.balance >= 1000 ? `${(team.balance / 1000).toFixed(2)} Cr` : `${(team.balance / 10).toFixed(1)} L`}
+                    = {formatCurrency(team.balance)}
                   </span>
                 </div>
               </div>
@@ -1093,6 +1118,50 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
           />
           <span style={{marginLeft: 4}}>%</span>
           <div style={{fontSize: '0.85rem', color: '#666', marginTop: 4}}>Maximum % of team purse that can be spent on Blue category players. Set to 100% to disable this cap.</div>
+        </div>
+        
+        {/* Quick Bid Buttons Configuration */}
+        <div style={{marginTop: 16, padding: '16px', background: '#f5f5f5', borderRadius: '8px', border: '1px solid #ddd'}}>
+          <label style={{fontWeight: 600, color: '#333'}}>⚡ Quick Bid Buttons:</label>
+          <div style={{fontSize: '0.85rem', color: '#666', marginBottom: 12}}>Configure the 3 quick-add buttons used during bidding. Enter exact values (e.g., 100000 = 1 Lakh).</div>
+          <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
+            <div>
+              <label style={{fontSize: '0.9rem'}}>Button 1:</label>
+              <input
+                type="number"
+                value={bidButton1}
+                onChange={e => setBidButton1(Number(e.target.value) || 100000)}
+                min="1000"
+                step="10000"
+                style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
+              />
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton1)}</span>
+            </div>
+            <div>
+              <label style={{fontSize: '0.9rem'}}>Button 2:</label>
+              <input
+                type="number"
+                value={bidButton2}
+                onChange={e => setBidButton2(Number(e.target.value) || 1000000)}
+                min="1000"
+                step="100000"
+                style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
+              />
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton2)}</span>
+            </div>
+            <div>
+              <label style={{fontSize: '0.9rem'}}>Button 3:</label>
+              <input
+                type="number"
+                value={bidButton3}
+                onChange={e => setBidButton3(Number(e.target.value) || 10000000)}
+                min="1000"
+                step="1000000"
+                style={{marginLeft: 8, padding: '0.5em', fontSize: '1rem', width: '120px'}}
+              />
+              <span style={{marginLeft: 4, fontSize: '0.8rem', color: '#666'}}>{formatCurrency(bidButton3)}</span>
+            </div>
+          </div>
         </div>
         
         {/* Auction Password for Resume Protection */}
@@ -1268,13 +1337,16 @@ export default function AuctionSetup({ onSetup }: { onSetup: (data: AuctionSetup
               bidLog,
               playerImages,
               teamLogos,
-              defaultBalance: 10000, // Keep passing default for AuctionScreen compatibility
+              defaultBalance: 100000000, // Default 10 Cr if not specified
               resumeData,
               auctionId,
               minPlayersPerTeam,
               maxPlayersPerTeam,
               blueCapPercent,
               passwordHash: pwHash, // Include password hash for resume protection
+              bidButton1,
+              bidButton2,
+              bidButton3,
             });
           }}
           disabled={!players.length || !teams.length || auctionPassword.length < 4}

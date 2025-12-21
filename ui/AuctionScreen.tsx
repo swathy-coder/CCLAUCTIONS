@@ -53,34 +53,39 @@ interface AuctionScreenProps {
   maxPlayersPerTeam?: number;
   blueCapPercent?: number;
   passwordHash?: string; // Auction password hash for resume protection
+  bidButton1?: number; // Custom quick bid button 1
+  bidButton2?: number; // Custom quick bid button 2
+  bidButton3?: number; // Custom quick bid button 3
 }
 
-// Helper: Snap bid to nearest 10-lakh (100 unit) multiple
-function snapToMultiple(units: number): number {
-  return Math.round(units / 100) * 100;
+// Helper: Snap bid to nearest 10000 (10k) multiple
+function snapToMultiple(value: number): number {
+  return Math.round(value / 10000) * 10000;
 }
 
-// Helper: Format bid units to currency
-// 10 units = 1 lakh, 100 units = 10 lakhs, 1000 units = 1 crore, 10000 units = 10 crore
-function formatBidCurrency(units: number): string {
-  if (units >= 1000) {
-    const crores = units / 1000;
-    return `₹${crores.toFixed(2)} Cr`;
+// Helper: Format currency - displays exact values with readable suffixes
+// 100 → ₹100, 1000 → ₹1k, 10000 → ₹10k, 100000 → ₹1L, 1000000 → ₹10L, 10000000 → ₹1Cr, 100000000 → ₹10Cr
+function formatCurrency(value: number): string {
+  if (value >= 10000000) {
+    // Crores: 10000000 = 1Cr
+    const crores = value / 10000000;
+    return crores % 1 === 0 ? `₹${crores}Cr` : `₹${crores.toFixed(1)}Cr`;
   }
-  const lakhs = units / 10;
-  return `₹${lakhs.toFixed(1)} L`;
+  if (value >= 100000) {
+    // Lakhs: 100000 = 1L
+    const lakhs = value / 100000;
+    return lakhs % 1 === 0 ? `₹${lakhs}L` : `₹${lakhs.toFixed(1)}L`;
+  }
+  if (value >= 1000) {
+    // Thousands: 1000 = 1k
+    const k = value / 1000;
+    return k % 1 === 0 ? `₹${k}k` : `₹${k.toFixed(1)}k`;
+  }
+  return `₹${value}`;
 }
 
-// Helper: Format balance (already in units)
-// 10 units = 1 lakh, 100 units = 10 lakhs, 1000 units = 1 crore, 10000 units = 10 crore
-function formatCurrency(units: number): string {
-  if (units >= 1000) {
-    const crores = units / 1000;
-    return `₹${crores.toFixed(2)} Cr`;
-  }
-  const lakhs = units / 10;
-  return `₹${lakhs.toFixed(1)} L`;
-}
+// Alias for backwards compatibility
+const formatBidCurrency = formatCurrency;
 
 function AuctionScreen({ 
   players = [], 
@@ -91,7 +96,10 @@ function AuctionScreen({
   minPlayersPerTeam = 6,
   maxPlayersPerTeam = 12,
   blueCapPercent = 65,
-  passwordHash
+  passwordHash,
+  bidButton1 = 100000,   // Default: +1L
+  bidButton2 = 1000000,  // Default: +10L  
+  bidButton3 = 10000000  // Default: +1Cr
 }: AuctionScreenProps) {
   console.log('='.repeat(80));
   console.log('🎬 AuctionScreen MOUNTED');
@@ -157,40 +165,29 @@ function AuctionScreen({
   });
   console.log('orderedPlayers state set to:', orderedPlayers?.length);
 
-  // Team state
+  // Team state - values are stored and used exactly as entered (no unit conversion)
   const [teamBalances, setTeamBalances] = useState(() => {
-    // Balance is already in units from AuctionSetup page (10000 units = ₹10Cr)
-    // Only convert if it appears to be in rupees (very large numbers like 100000000)
-    const normalizeBalance = (balance: number) => {
-      // If balance > 50000, it's likely in rupees and needs conversion to units
-      // (50000 units = ₹5Cr is an upper bound for normal auction budgets)
-      if (balance > 50000) {
-        return Math.round(balance / 10000); // Convert rupees to units
-      }
-      return balance; // Already in units
-    };
-    
     if (resumeData?.balances) {
       const initialized = teams.map(t => ({
         ...t,
-        balance: resumeData.balances[t.name]?.balance ?? normalizeBalance(t.balance && t.balance > 0 ? t.balance : defaultBalance),
+        balance: resumeData.balances[t.name]?.balance ?? (t.balance && t.balance > 0 ? t.balance : defaultBalance),
         acquired: resumeData.balances[t.name]?.acquired ?? 0
       }));
       console.log('📊 AuctionScreen init - resumeData found:');
       initialized.forEach(t => {
-        console.log(`   ${t.name}: balance=${t.balance} units (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
+        console.log(`   ${t.name}: balance=${t.balance} (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
       });
       return initialized;
     }
     
     const initialized = teams.map(t => ({
       ...t,
-      balance: normalizeBalance(t.balance && t.balance > 0 ? t.balance : defaultBalance),
+      balance: t.balance && t.balance > 0 ? t.balance : defaultBalance,
       acquired: 0
     }));
     console.log('📊 AuctionScreen init - fresh start:');
     initialized.forEach(t => {
-      console.log(`   ${t.name}: balance=${t.balance} units (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
+      console.log(`   ${t.name}: balance=${t.balance} (${formatCurrency(t.balance)}), acquired=${t.acquired}`);
     });
     return initialized;
   });
@@ -1357,14 +1354,14 @@ function AuctionScreen({
             <div className="quick-add-section">
               <label>Quick Add</label>
               <div className="quick-add-buttons">
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(100)}>
-                  +100 <small>(10L)</small>
+                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton1)}>
+                  +{formatCurrency(bidButton1).replace('₹', '')}
                 </button>
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(500)}>
-                  +500 <small>(50L)</small>
+                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton2)}>
+                  +{formatCurrency(bidButton2).replace('₹', '')}
                 </button>
-                <button className="btn-quick-add" onClick={() => handleQuickAdd(1000)}>
-                  +1000 <small>(1Cr)</small>
+                <button className="btn-quick-add" onClick={() => handleQuickAdd(bidButton3)}>
+                  +{formatCurrency(bidButton3).replace('₹', '')}
                 </button>
               </div>
             </div>

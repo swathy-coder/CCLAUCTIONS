@@ -4,6 +4,24 @@ import type { Player, Team } from './AuctionScreen';
 import { subscribeToAuctionUpdates } from '../src/firebase';
 import LogoImage from '../LOGO 2.png';
 
+// Helper: Format currency - displays exact values with readable suffixes
+// 100 → ₹100, 1000 → ₹1k, 10000 → ₹10k, 100000 → ₹1L, 1000000 → ₹10L, 10000000 → ₹1Cr
+function formatCurrency(value: number): string {
+  if (value >= 10000000) {
+    const crores = value / 10000000;
+    return crores % 1 === 0 ? `₹${crores}Cr` : `₹${crores.toFixed(1)}Cr`;
+  }
+  if (value >= 100000) {
+    const lakhs = value / 100000;
+    return lakhs % 1 === 0 ? `₹${lakhs}L` : `₹${lakhs.toFixed(1)}L`;
+  }
+  if (value >= 1000) {
+    const k = value / 1000;
+    return k % 1 === 0 ? `₹${k}k` : `₹${k.toFixed(1)}k`;
+  }
+  return `₹${value}`;
+}
+
 type AuctionLogEntry = {
   round: number;
   attempt: number;
@@ -504,19 +522,13 @@ export default function AudienceView({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(76, 175, 80, 0.2)', borderRadius: '0.5rem' }}>
             <span style={{ fontSize: '1.5rem' }}>💰</span>
             <span style={{ color: '#81c784', fontWeight: 700, fontSize: '1.1rem' }}>
-              ₹{(() => {
-                const total = soldPlayersList.reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0);
-                return total >= 1000 ? `${(total / 1000).toFixed(2)} Cr` : `${(total / 10).toFixed(1)} L`;
-              })()} Spent
+              {formatCurrency(soldPlayersList.reduce((sum, log) => sum + (typeof log.amount === 'number' ? log.amount : 0), 0))} Spent
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(255, 193, 7, 0.2)', borderRadius: '0.5rem' }}>
             <span style={{ fontSize: '1.5rem' }}>🏆</span>
             <span style={{ color: '#ffd54f', fontWeight: 700, fontSize: '1.1rem' }}>
-              Max: ₹{(() => {
-                const maxBid = soldPlayersList.reduce((max, log) => Math.max(max, typeof log.amount === 'number' ? log.amount : 0), 0);
-                return maxBid >= 1000 ? `${(maxBid / 1000).toFixed(2)} Cr` : `${(maxBid / 10).toFixed(1)} L`;
-              })()}
+              Max: {formatCurrency(soldPlayersList.reduce((max, log) => Math.max(max, typeof log.amount === 'number' ? log.amount : 0), 0))}
             </span>
           </div>
         </div>
@@ -678,7 +690,7 @@ export default function AudienceView({
                           {liveData.soldToTeam && <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>To {liveData.soldToTeam}</div>}
                           {liveData.soldAmount && (
                             <div style={{ fontSize: 'clamp(0.8rem, 2.5vw, 1.5rem)', marginTop: 'clamp(0.1rem, 0.5vw, 0.3rem)' }}>
-                              {`₹${liveData.soldAmount >= 1000 ? `${(liveData.soldAmount / 1000).toFixed(2)} Cr` : `${(liveData.soldAmount / 10).toFixed(1)} L`}`}
+                              {formatCurrency(liveData.soldAmount)}
                             </div>
                           )}
                         </div>
@@ -750,7 +762,6 @@ export default function AudienceView({
                 const blueLeft = Math.max(0, blueBudget - blueSpent);
                 return { name: team.name, logo: team.logo, acquired, balance: team.balance, blueLeft, isFull: acquired >= maxPlayersPerTeam, isComplete: acquired >= minPlayersPerTeam };
               })).map((roster: any, idx: number) => {
-                const formatCurrency = (units: number) => units >= 1000 ? `₹${(units / 1000).toFixed(1)}Cr` : `₹${(units / 10).toFixed(0)}L`;
                 return (
                   <div key={roster.name} style={{
                     display: 'grid',
@@ -811,7 +822,7 @@ export default function AudienceView({
               <div style={{ padding: '1rem', color: '#666' }}>No players sold yet</div>
             ) : soldPlayersList.slice(0, 15).map((log, idx) => {
               const amount = typeof log.amount === 'number' ? log.amount : 0;
-              const displayAmount = amount >= 1000 ? `₹${(amount / 1000).toFixed(1)}Cr` : `₹${(amount / 10).toFixed(0)}L`;
+              const displayAmount = formatCurrency(amount);
               const isBlue = log.category && log.category.toLowerCase() === 'blue';
               return (
                 <div key={idx} style={{
