@@ -327,8 +327,33 @@ body {
 }
 
 /* ===================================
-   COLUMN 3: CONTROL PANE (Sticky)
+   COLUMN 3: BIDDING CONTROLS (2 Cards)
    =================================== */
+.bidding-controls-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  position: sticky;
+  top: 12px;
+  align-self: start;
+}
+
+.team-card,
+.bid-actions-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.team-card h3,
+.bid-actions-card h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 4px 0;
+}
+
+/* Legacy control-pane for backwards compatibility */
 .control-pane {
   position: sticky;
   top: 12px;
@@ -353,6 +378,13 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+/* Quick Add Edit Grid */
+.quick-add-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 /* Team Selection */
@@ -569,7 +601,66 @@ body {
   text-align: center;
 }
 
-/* Action Buttons */
+/* Main Action Buttons - SOLD & UNSOLD (full width) */
+.main-action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Secondary Action Buttons - smaller row */
+.secondary-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.btn-secondary {
+  padding: 8px 6px;
+  border: none;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.btn-secondary.btn-undo {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ff9800;
+}
+
+.btn-secondary.btn-next {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #1976d2;
+}
+
+.btn-secondary.btn-next-round {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.btn-secondary.btn-distribute {
+  background: #f3e5f5;
+  color: #7b1fa2;
+  border: 1px solid #9c27b0;
+}
+
+.btn-secondary:hover:not(.disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Legacy Action Buttons */
 .action-buttons {
   display: flex;
   flex-direction: column;

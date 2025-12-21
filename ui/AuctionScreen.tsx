@@ -250,6 +250,13 @@ function AuctionScreen({
   const [lastSoldAmount, setLastSoldAmount] = useState(0);
   const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
   
+  // Editable quick adjust buttons
+  const [quickAdd1, setQuickAdd1] = useState(bidButton1);
+  const [quickAdd2, setQuickAdd2] = useState(bidButton2);
+  const [quickAdd3, setQuickAdd3] = useState(bidButton3);
+  const [quickAdd4, setQuickAdd4] = useState(bidButton4);
+  const [isEditingQuickAdd, setIsEditingQuickAdd] = useState(false);
+  
   // Online/Offline status indicator
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
@@ -702,15 +709,8 @@ function AuctionScreen({
   
   // Get the lowest positive quick add value for step increment
   const getMinPositiveQuickAdd = (): number => {
-    const positiveValues = [bidButton1, bidButton2, bidButton3, bidButton4].filter(v => v > 0);
+    const positiveValues = [quickAdd1, quickAdd2, quickAdd3, quickAdd4].filter(v => v > 0);
     return positiveValues.length > 0 ? Math.min(...positiveValues) : 100000; // Default to 1L
-  };
-
-  // Snap bid to nearest multiple
-  const handleSnapBid = () => {
-    const snapped = snapToMultiple(bidUnits);
-    setBidUnits(snapped);
-    setBidError('');
   };
 
   // Auto-download bid log after each action
@@ -1287,37 +1287,21 @@ function AuctionScreen({
             </div>
           </div>
 
-          {/* Column 3: Control Pane (Sticky) */}
-          <div className="control-pane card">
-            <h3>Bidding Controls</h3>
-
-            {/* Team Selection */}
-            <div className="team-selection">
-              <label>Select Team {isCurrentPlayerBlue && <span style={{ color: '#1976d2', fontSize: '0.85em' }}>(🔵 Blue Cap Active)</span>}</label>
+          {/* Column 3: Bidding Controls - 2 Card Layout */}
+          <div className="bidding-controls-wrapper">
+            {/* Left Card: Team Selection */}
+            <div className="team-card card">
+              <h3>Select Team {isCurrentPlayerBlue && <span style={{ color: '#1976d2', fontSize: '0.85em' }}>(🔵 Blue Cap)</span>}</h3>
               <div className="team-grid">
                 {teamBalances.map(team => {
                   const acquired = team.acquired || 0;
                   const needed = Math.max(0, minPlayersPerTeam - acquired);
-                  // Max bid allowed = balance - minimum needed
-                  // Minimum needed = needed × 100 units = needed × ₹10L
-                  // If team needs only 1 more player, they can go all-in (no reserve needed)
                   const minNeededBalanceUnits = needed <= 1 ? 0 : (needed - 1) * 100;
                   const maxBidBalanceUnits = Math.max(0, team.balance - minNeededBalanceUnits);
-                  // Team can bid if max bid >= minimum (10 units = ₹1L)
                   const canAffordBalance = maxBidBalanceUnits >= 10;
-                  
-                  // Blue cap check: if current player is blue, check if team can afford within blue budget
                   const maxBlueBidForTeam = getMaxBlueBid(team.name);
                   const canAffordBlueCap = !isCurrentPlayerBlue || maxBlueBidForTeam >= 10;
-                  
-                  // Logging for debugging bidding controls vs team roster
-                  if (selectedTeam === team.name) {
-                    console.log(`🎯 Bidding Controls selected team: ${team.name} | balance=${team.balance} units (${formatCurrency(team.balance)}) | acquired=${acquired} | maxBlueBid=${maxBlueBidForTeam} | canAffordBalance=${canAffordBalance} | canAffordBlueCap=${canAffordBlueCap}`);
-                  }
-                  
-                  // Max players check: team cannot acquire more than maxPlayersPerTeam
                   const hasReachedMaxPlayers = acquired >= maxPlayersPerTeam;
-                  
                   const canAfford = canAffordBalance && canAffordBlueCap && !hasReachedMaxPlayers;
                   const disabledReason = hasReachedMaxPlayers ? 'maxplayers' : (!canAffordBalance ? 'balance' : (!canAffordBlueCap ? 'bluecap' : ''));
                   
@@ -1327,17 +1311,12 @@ function AuctionScreen({
                       className={`team-btn ${selectedTeam === team.name ? 'selected' : ''} ${!canAfford ? 'disabled' : ''} ${disabledReason === 'bluecap' ? 'bluecap-disabled' : ''} ${disabledReason === 'maxplayers' ? 'maxplayers-disabled' : ''}`}
                       onClick={() => handleTeamSelect(team.name)}
                       disabled={!canAfford}
-                      aria-label={`Select ${team.name}`}
-                      title={disabledReason === 'bluecap' ? `Blue cap reached: ${formatCurrency(maxBlueBidForTeam)} remaining` : (disabledReason === 'maxplayers' ? `Team full: ${acquired}/${maxPlayersPerTeam} players` : '')}
+                      title={disabledReason === 'bluecap' ? `Blue cap: ${formatCurrency(maxBlueBidForTeam)}` : (disabledReason === 'maxplayers' ? `Full: ${acquired}/${maxPlayersPerTeam}` : '')}
                     >
-                      {team.logo && (
-                        <img src={team.logo} alt={team.name} className="team-logo-small" />
-                      )}
+                      {team.logo && <img src={team.logo} alt={team.name} className="team-logo-small" />}
                       <span className="team-full-name">{team.name}</span>
                       {isCurrentPlayerBlue && canAfford && (
-                        <span style={{ fontSize: '0.7em', color: '#1976d2', marginLeft: 'auto' }}>
-                          🔵{formatCurrency(maxBlueBidForTeam)}
-                        </span>
+                        <span style={{ fontSize: '0.7em', color: '#1976d2', marginLeft: 'auto' }}>🔵{formatCurrency(maxBlueBidForTeam)}</span>
                       )}
                     </button>
                   );
@@ -1345,8 +1324,8 @@ function AuctionScreen({
               </div>
             </div>
 
-            {/* Bid Controls - 2 Column Layout */}
-            <div className="bid-controls-grid">
+            {/* Right Card: Bid Controls & Actions */}
+            <div className="bid-actions-card card">
               {/* Bid Amount */}
               <div className="bid-input-section">
                 <label htmlFor="bid-input">Bid Amount</label>
@@ -1363,118 +1342,134 @@ function AuctionScreen({
                 <div className="bid-display">
                   {bidUnits > 0 ? formatBidCurrency(bidUnits) : '₹0'}
                 </div>
-                {bidUnits % 100 !== 0 && bidUnits > 0 && (
-                  <button className="btn-snap" onClick={handleSnapBid}>
-                    Snap to {snapToMultiple(bidUnits)} units
+              </div>
+
+              {/* Quick Adjust with Edit Toggle */}
+              <div className="quick-add-section">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ margin: 0 }}>Quick Adjust</label>
+                  <button 
+                    onClick={() => setIsEditingQuickAdd(!isEditingQuickAdd)}
+                    style={{ 
+                      background: isEditingQuickAdd ? '#4caf50' : '#e0e0e0', 
+                      border: 'none', 
+                      borderRadius: '4px', 
+                      padding: '2px 8px', 
+                      fontSize: '10px',
+                      color: isEditingQuickAdd ? 'white' : '#666',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {isEditingQuickAdd ? '✓ Done' : '✎ Edit'}
                   </button>
+                </div>
+                
+                {isEditingQuickAdd ? (
+                  <div className="quick-add-edit-grid">
+                    <input type="number" value={quickAdd1} onChange={e => setQuickAdd1(Number(e.target.value))} style={{ padding: '6px', fontSize: '12px', textAlign: 'center', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="number" value={quickAdd2} onChange={e => setQuickAdd2(Number(e.target.value))} style={{ padding: '6px', fontSize: '12px', textAlign: 'center', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="number" value={quickAdd3} onChange={e => setQuickAdd3(Number(e.target.value))} style={{ padding: '6px', fontSize: '12px', textAlign: 'center', borderRadius: '4px', border: '1px solid #ccc' }} />
+                    <input type="number" value={quickAdd4} onChange={e => setQuickAdd4(Number(e.target.value))} style={{ padding: '6px', fontSize: '12px', textAlign: 'center', borderRadius: '4px', border: '1px solid #ccc' }} />
+                  </div>
+                ) : (
+                  <div className="quick-add-buttons">
+                    <button 
+                      className={`btn-quick-add ${quickAdd1 < 0 ? 'btn-subtract' : ''}`} 
+                      onClick={() => handleQuickAdd(quickAdd1)}
+                      style={quickAdd1 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                    >
+                      {quickAdd1 >= 0 ? '+' : ''}{formatCurrency(quickAdd1).replace('₹', '')}
+                    </button>
+                    <button 
+                      className={`btn-quick-add ${quickAdd2 < 0 ? 'btn-subtract' : ''}`} 
+                      onClick={() => handleQuickAdd(quickAdd2)}
+                      style={quickAdd2 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                    >
+                      {quickAdd2 >= 0 ? '+' : ''}{formatCurrency(quickAdd2).replace('₹', '')}
+                    </button>
+                    <button 
+                      className={`btn-quick-add ${quickAdd3 < 0 ? 'btn-subtract' : ''}`} 
+                      onClick={() => handleQuickAdd(quickAdd3)}
+                      style={quickAdd3 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                    >
+                      {quickAdd3 >= 0 ? '+' : ''}{formatCurrency(quickAdd3).replace('₹', '')}
+                    </button>
+                    <button 
+                      className={`btn-quick-add ${quickAdd4 < 0 ? 'btn-subtract' : ''}`} 
+                      onClick={() => handleQuickAdd(quickAdd4)}
+                      style={quickAdd4 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
+                    >
+                      {quickAdd4 >= 0 ? '+' : ''}{formatCurrency(quickAdd4).replace('₹', '')}
+                    </button>
+                  </div>
                 )}
               </div>
 
-              {/* Quick Add/Subtract */}
-              <div className="quick-add-section">
-                <label>Quick Adjust</label>
-                <div className="quick-add-buttons">
-                  <button 
-                    className={`btn-quick-add ${bidButton1 < 0 ? 'btn-subtract' : ''}`} 
-                    onClick={() => handleQuickAdd(bidButton1)}
-                    style={bidButton1 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
-                  >
-                    {bidButton1 >= 0 ? '+' : ''}{formatCurrency(bidButton1).replace('₹', '')}
-                  </button>
-                  <button 
-                    className={`btn-quick-add ${bidButton2 < 0 ? 'btn-subtract' : ''}`} 
-                    onClick={() => handleQuickAdd(bidButton2)}
-                    style={bidButton2 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
-                  >
-                    {bidButton2 >= 0 ? '+' : ''}{formatCurrency(bidButton2).replace('₹', '')}
-                  </button>
-                  <button 
-                    className={`btn-quick-add ${bidButton3 < 0 ? 'btn-subtract' : ''}`} 
-                    onClick={() => handleQuickAdd(bidButton3)}
-                    style={bidButton3 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
-                  >
-                    {bidButton3 >= 0 ? '+' : ''}{formatCurrency(bidButton3).replace('₹', '')}
-                  </button>
-                  <button 
-                    className={`btn-quick-add ${bidButton4 < 0 ? 'btn-subtract' : ''}`} 
-                    onClick={() => handleQuickAdd(bidButton4)}
-                    style={bidButton4 < 0 ? { background: '#ffebee', borderColor: '#f44336', color: '#c62828' } : {}}
-                  >
-                    {bidButton4 >= 0 ? '+' : ''}{formatCurrency(bidButton4).replace('₹', '')}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Error Display */}
-            {bidError && (
-              <div className="bid-error" role="alert">
-                ⚠️ {bidError}
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              <button 
-                className={`btn-action btn-sold ${canSell ? '' : 'disabled'}`}
-                onClick={handleSold}
-                disabled={!canSell}
-                aria-label="Mark player as sold"
-              >
-                ✓ SOLD
-              </button>
-              
-              <button 
-                className={`btn-action btn-unsold ${canUnsold ? '' : 'disabled'}`}
-                onClick={handleUnsold}
-                disabled={!canUnsold}
-                aria-label="Mark player as unsold"
-              >
-                ✗ UNSOLD
-              </button>
-
-              <button 
-                className={`btn-action btn-undo ${canUndo ? '' : 'disabled'}`}
-                onClick={handleUndo}
-                disabled={!canUndo}
-                aria-label="Undo last action"
-              >
-                ↶ UNDO
-              </button>
-
-              <button 
-                className={`btn-action btn-next ${canNext ? '' : 'disabled'}`}
-                onClick={handleNextPlayer}
-                disabled={!canNext}
-                aria-label="Move to next player"
-              >
-                → NEXT PLAYER
-              </button>
-
-              <button 
-                className={`btn-action btn-next-round ${canNextRound ? '' : 'disabled'}`}
-                onClick={handleNextRound}
-                disabled={!canNextRound}
-                aria-label="Start next round"
-              >
-                ⇒ NEXT ROUND
-              </button>
-
-              {allTeamsMetMinimum() && getUnsoldPlayers().length > 0 && (
-                <button 
-                  className="btn-action btn-distribute"
-                  onClick={() => {
-                    const unsold = getUnsoldPlayers();
-                    if (unsold.length > 0) {
-                      setDistributionMode(true);
-                      setCurrentDistributionPlayer(unsold[0]);
-                    }
-                  }}
-                  aria-label="Distribute unsold players"
-                >
-                  📦 DISTRIBUTE
-                </button>
+              {/* Error Display */}
+              {bidError && (
+                <div className="bid-error" role="alert">⚠️ {bidError}</div>
               )}
+
+              {/* Main Action Buttons - SOLD & UNSOLD */}
+              <div className="main-action-buttons">
+                <button 
+                  className={`btn-action btn-sold ${canSell ? '' : 'disabled'}`}
+                  onClick={handleSold}
+                  disabled={!canSell}
+                >
+                  ✓ SOLD
+                </button>
+                <button 
+                  className={`btn-action btn-unsold ${canUnsold ? '' : 'disabled'}`}
+                  onClick={handleUnsold}
+                  disabled={!canUnsold}
+                >
+                  ✗ UNSOLD
+                </button>
+              </div>
+
+              {/* Secondary Action Buttons - Smaller Row */}
+              <div className="secondary-action-buttons">
+                <button 
+                  className={`btn-secondary btn-undo ${canUndo ? '' : 'disabled'}`}
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  title="Undo last action"
+                >
+                  ↶ Undo
+                </button>
+                <button 
+                  className={`btn-secondary btn-next ${canNext ? '' : 'disabled'}`}
+                  onClick={handleNextPlayer}
+                  disabled={!canNext}
+                  title="Next player"
+                >
+                  → Next
+                </button>
+                <button 
+                  className={`btn-secondary btn-next-round ${canNextRound ? '' : 'disabled'}`}
+                  onClick={handleNextRound}
+                  disabled={!canNextRound}
+                  title="Start next round"
+                >
+                  ⇒ Round
+                </button>
+                {allTeamsMetMinimum() && getUnsoldPlayers().length > 0 && (
+                  <button 
+                    className="btn-secondary btn-distribute"
+                    onClick={() => {
+                      const unsold = getUnsoldPlayers();
+                      if (unsold.length > 0) {
+                        setDistributionMode(true);
+                        setCurrentDistributionPlayer(unsold[0]);
+                      }
+                    }}
+                    title="Distribute unsold"
+                  >
+                    📦 Dist
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
