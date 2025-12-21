@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import AuctionScreen from '../ui/AuctionScreen';
 import AuctionSetup from '../ui/AuctionSetup';
 import AudienceView from '../ui/AudienceView';
-import RecoveryModal from '../ui/RecoveryModal';
-import { saveAuctionStateOnline, loadAuctionStateOnline } from './firebase';
-import { loadPhotosFromIndexedDB, savePhotosToIndexedDB } from './utils/storage';
+import { loadAuctionStateOnline } from './firebase';
 import './App.css';
 
 import type { Player, Team, BidLog, ResumeData } from '../ui/AuctionSetup';
@@ -47,7 +45,7 @@ const cleanupOldAuctions = () => {
     // Check if app version changed - if so, clear everything
     const storedVersion = localStorage.getItem('app_version');
     if (storedVersion !== APP_VERSION) {
-      console.log(`🔄 App version changed: ${storedVersion} → ${APP_VERSION}. Clearing all cached data.`);
+      console.log(`ðŸ”„ App version changed: ${storedVersion} â†’ ${APP_VERSION}. Clearing all cached data.`);
       
       // Clear all auction-related data
       const keys = Object.keys(localStorage);
@@ -63,7 +61,7 @@ const cleanupOldAuctions = () => {
       localStorage.setItem('app_version', APP_VERSION);
       
       if (cleaned > 0) {
-        console.log(`🧹 Cleared ${cleaned} cached auction records due to version update`);
+        console.log(`ðŸ§¹ Cleared ${cleaned} cached auction records due to version update`);
       }
       return;
     }
@@ -82,7 +80,7 @@ const cleanupOldAuctions = () => {
     }
     
     if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} old auction records from localStorage`);
+      console.log(`ðŸ§¹ Cleaned up ${cleaned} old auction records from localStorage`);
     }
   } catch (e) {
     console.warn('Could not cleanup localStorage:', e);
@@ -99,8 +97,6 @@ try {
 function App() {
   console.log('App component rendering');
   const [setup, setSetup] = useState<SetupData | null>(null);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [checkingRecovery, setCheckingRecovery] = useState(true);
   
   // Password protection state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -134,24 +130,22 @@ function App() {
         return;
       }
       
-      console.log('🔄 Auto-resume: Checking Firebase for auction:', auctionIdFromUrl);
+      console.log('ðŸ”„ Auto-resume: Checking Firebase for auction:', auctionIdFromUrl);
       try {
         const data = await loadAuctionStateOnline(auctionIdFromUrl);
         if (data && (data as any).auctionId) {
-          console.log('✅ Auto-resume: Found auction data in Firebase');
+          console.log('âœ… Auto-resume: Found auction data in Firebase');
           setPendingResumeData(data);
           setShowResumePasswordPrompt(true);
-          setCheckingRecovery(false);
-          setShowRecovery(false);
         } else {
-          console.log('⚠️ Auto-resume: No auction data found, showing normal flow');
-          setCheckingRecovery(false);
-          setShowRecovery(true);
+          console.log('âš ï¸ Auto-resume: No auction data found for this ID');
+          // Clear invalid auction param from URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('auction');
+          window.history.replaceState({}, '', url.toString());
         }
       } catch (e) {
         console.error('Auto-resume check failed:', e);
-        setCheckingRecovery(false);
-        setShowRecovery(true);
       }
     };
     
@@ -181,7 +175,7 @@ function App() {
     const storedHash = pendingResumeData.passwordHash;
     
     if (inputHash === storedHash) {
-      console.log('✅ Resume password verified, loading auction...');
+      console.log('âœ… Resume password verified, loading auction...');
       await performAutoResume(pendingResumeData);
       setShowResumePasswordPrompt(false);
       setResumePasswordError('');
@@ -200,7 +194,7 @@ function App() {
     const onlinePhotoBaseUrl = 'https://cclauctions.pages.dev/player-photos';
     const photoExtensions = ['jpg', 'jpeg', 'png', 'JPG', 'JPEG', 'PNG'];
     
-    console.log('📷 Loading photos for', players.length, 'players from online...');
+    console.log('ðŸ“· Loading photos for', players.length, 'players from online...');
     
     const playersWithPhotos = await Promise.all(players.map(async (player: any) => {
       // Skip if player already has a photo URL
@@ -223,7 +217,7 @@ function App() {
       return player;
     }));
     
-    console.log('✅ Loaded photos, setting up auction state');
+    console.log('âœ… Loaded photos, setting up auction state');
     
     // Build team balances from data
     const teamBalances = data.teamBalances || [];
@@ -260,36 +254,13 @@ function App() {
     });
   };
   
-  // Check for recovery on mount (only if no auction ID in URL)
-  useEffect(() => {
-    const checkForRecovery = async () => {
-      // Skip if audience view or if URL has auction ID (handled by auto-resume)
-      if (isAudienceView || auctionIdFromUrl) {
-        setCheckingRecovery(false);
-        return;
-      }
-
-      // Show recovery modal on fresh load to allow cross-device resume
-      if (!setup) {
-        console.log('📋 Showing recovery modal for cross-device auction resume');
-        setShowRecovery(true);
-      }
-      
-      setCheckingRecovery(false);
-    };
-
-    if (isAuthenticated) {
-      checkForRecovery();
-    }
-  }, [setup, isAudienceView, auctionIdFromUrl, isAuthenticated]);
-
   // Set auction ID in URL whenever setup changes
   useEffect(() => {
     if (setup && setup.auctionId) {
       const url = new URL(window.location.href);
       url.searchParams.set('auction', setup.auctionId);
       window.history.replaceState({}, '', url.toString());
-      console.log('✅ App: Updated URL with auction ID:', setup.auctionId);
+      console.log('âœ… App: Updated URL with auction ID:', setup.auctionId);
     }
   }, [setup?.auctionId]);
   
@@ -326,7 +297,7 @@ function App() {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏏</div>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>ðŸ</div>
           <h1 style={{ color: '#fff', fontSize: '1.8rem', marginBottom: '0.5rem' }}>CCL Auction 2025</h1>
           <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.95rem' }}>Enter password to access auctioneer panel</p>
           
@@ -353,7 +324,7 @@ function App() {
           
           {passwordError && (
             <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              ❌ {passwordError}
+              âŒ {passwordError}
             </div>
           )}
           
@@ -372,22 +343,13 @@ function App() {
               transition: 'transform 0.2s',
             }}
           >
-            🔓 Enter
+            ðŸ”“ Enter
           </button>
           
           <p style={{ color: '#666', marginTop: '2rem', fontSize: '0.8rem' }}>
             Audience? Use the shared link to watch the auction live.
           </p>
         </div>
-      </div>
-    );
-  }
-  
-  // Show recovery modal if checking and found auctions
-  if (checkingRecovery) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0e27' }}>
-        <div style={{ color: '#fff', fontSize: '1.2rem' }}>⏳ Loading...</div>
       </div>
     );
   }
@@ -412,7 +374,7 @@ function App() {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔄</div>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>ðŸ”„</div>
           <h1 style={{ color: '#fff', fontSize: '1.6rem', marginBottom: '0.5rem' }}>Resume Auction</h1>
           <p style={{ color: '#4caf50', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 600 }}>
             Auction ID: {auctionIdFromUrl}
@@ -444,7 +406,7 @@ function App() {
           
           {resumePasswordError && (
             <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              ❌ {resumePasswordError}
+              âŒ {resumePasswordError}
             </div>
           )}
           
@@ -463,15 +425,14 @@ function App() {
               marginBottom: '1rem',
             }}
           >
-            ▶️ Resume Auction
+            â–¶ï¸ Resume Auction
           </button>
           
           <button
             onClick={() => {
               setShowResumePasswordPrompt(false);
               setPendingResumeData(null);
-              setShowRecovery(true);
-              // Clear URL auction param
+              // Clear URL auction param and go to setup
               const url = new URL(window.location.href);
               url.searchParams.delete('auction');
               window.history.replaceState({}, '', url.toString());
@@ -494,187 +455,7 @@ function App() {
     );
   }
 
-  if (showRecovery) {
-    return (
-      <RecoveryModal
-        onResume={async (auctionData) => {
-          console.log('✅ Resuming auction from RecoveryModal:', auctionData);
-          const data = auctionData as any;
-          
-          // IMPORTANT: Clear all old auction data from localStorage before resuming
-          // This prevents stale cached data from conflicting with fresh Firebase data
-          try {
-            const keys = Object.keys(localStorage);
-            let cleared = 0;
-            for (const key of keys) {
-              if (key.startsWith('auction_') || key.startsWith('auction_setup_')) {
-                localStorage.removeItem(key);
-                cleared++;
-              }
-            }
-            console.log(`🧹 Cleared ${cleared} cached auction records before resume`);
-          } catch (e) {
-            console.warn('Could not clear localStorage:', e);
-          }
-          
-          // Get OLD auction ID from the recovered data
-          const oldAuctionId = data.auctionId || localStorage.getItem('current_auction_id') || '';
-          
-          // 📷 RESTORE PHOTOS FROM INDEXEDDB
-          // Photos are stored locally in IndexedDB (not synced via Firebase due to size limits)
-          // We need to restore them to the players array before resuming
-          console.log('📷 Attempting to restore photos from IndexedDB for auction:', oldAuctionId);
-          const photoMap = await loadPhotosFromIndexedDB(oldAuctionId);
-          console.log(`📷 Found ${photoMap.size} photos in IndexedDB`);
-          
-          // Generate NEW auction ID to ensure fresh Firebase subscription sync
-          // This solves the issue where Device 2 AudienceView doesn't update from Device 2 changes
-          const newAuctionId = Math.random().toString(36).substring(2, 10).toUpperCase();
-          
-          console.log('🔄 Resume: Old auctionId:', oldAuctionId, '→ New auctionId:', newAuctionId);
-          console.log('📝 Reason: Fresh ID ensures AudienceView subscribes to new Firebase path');
-          console.log('🎯 Data being migrated - auctionData has photos:', !!data?.currentPlayer?.photo);
-          console.log('📋 Recovered auctionLog sample:', data?.auctionLog?.[0], 'total entries:', data?.auctionLog?.length);
-          
-          // Convert auctionLog format to ResumeData format
-          let playerSequence: string[] = [];
-          let balances: Record<string, {balance: number; acquired: number}> = {};
-          
-          // Reconstruct sequence from auction log and current state
-          if (data.players && Array.isArray(data.players)) {
-            playerSequence = data.players.map((p: any) => p.name);
-          }
-          
-          // Build balances from teamBalances
-          // Handle both array format and Firebase object format (with numeric keys)
-          const teamBalancesData = data.teamBalances;
-          console.log('🔍 teamBalances data type:', typeof teamBalancesData, 'isArray:', Array.isArray(teamBalancesData));
-          
-          if (teamBalancesData) {
-            const teamsArray = Array.isArray(teamBalancesData) 
-              ? teamBalancesData 
-              : Object.values(teamBalancesData); // Firebase sometimes converts arrays to objects
-            
-            console.log('🔍 Processing', teamsArray.length, 'teams from Firebase');
-            
-            teamsArray.forEach((team: any) => {
-              if (team && team.name) {
-                console.log(`   ${team.name}: balance=${team.balance}, acquired=${team.acquired}`);
-                balances[team.name] = {
-                  balance: team.balance,
-                  acquired: team.acquired || 0
-                };
-              }
-            });
-          }
-          
-          // Convert auctionLog entries to expected format
-          const resumeLog = (data.auctionLog || []).map((entry: any) => ({
-            round: entry.round || 1,
-            attempt: entry.attempt || 1,
-            timestamp: entry.timestamp || new Date().toISOString(),
-            playerName: entry.playerName || '',
-            team: entry.team || '',
-            amount: entry.amount || '',
-            status: entry.status || 'Unsold',
-            category: entry.category,
-            notes: entry.notes
-          }));
-          
-          // Create proper resumeData structure
-          const resumeData: ResumeData = {
-            round: data.round || 1,
-            playerIdx: data.playerIdx || 0,
-            sequence: playerSequence,
-            balances,
-            log: resumeLog
-          };
-          
-          console.log('📊 Converted resumeData:', resumeData);
-          
-          // Convert recovered data to setup format using NEW auctionId
-          // Handle Firebase object format for arrays (Firebase converts arrays to objects with numeric keys)
-          const teamsData = data.teams;
-          const teamsArray = Array.isArray(teamsData) 
-            ? teamsData 
-            : (teamsData ? Object.values(teamsData) : []);
-          
-          const playersData = data.players;
-          let playersArray = Array.isArray(playersData)
-            ? playersData
-            : (playersData ? Object.values(playersData) : []);
-          
-          // 📷 Restore photos from IndexedDB to players
-          if (photoMap.size > 0) {
-            console.log('📷 Restoring photos to players from IndexedDB...');
-            playersArray = playersArray.map((player: any) => {
-              const photo = photoMap.get(player.id) || photoMap.get(String(player.id));
-              if (photo) {
-                return { ...player, photo };
-              }
-              return player;
-            });
-            const playersWithPhotos = playersArray.filter((p: any) => p.photo).length;
-            console.log(`📷 Restored photos to ${playersWithPhotos}/${playersArray.length} players`);
-          } else {
-            console.log('⚠️ No photos found in IndexedDB - players will display without photos');
-          }
-          
-          console.log('🔍 Teams array length:', teamsArray.length, 'Players array length:', playersArray.length);
-          
-          const setupData = {
-            tournament: data.tournament || 'Recovered Auction',
-            players: playersArray,
-            teams: teamsArray,
-            bidLog: [],
-            playerImages: {},
-            teamLogos: {},
-            defaultBalance: data.defaultBalance || 0,
-            resumeData,
-            auctionId: newAuctionId,  // USE NEW ID - this is the key fix!
-            minPlayersPerTeam: data.minPlayersPerTeam,
-            maxPlayersPerTeam: data.maxPlayersPerTeam,
-            blueCapPercent: data.blueCapPercent,
-          };
-          
-          setSetup(setupData);
-          
-          // Store NEW auction ID for audience view - this will be picked up by URL update effect
-          localStorage.setItem('current_auction_id', newAuctionId);
-          
-          // 📷 Save photos to IndexedDB with NEW auction ID so future resumes work
-          if (photoMap.size > 0) {
-            console.log('📷 Saving photos to IndexedDB with new auction ID:', newAuctionId);
-            savePhotosToIndexedDB(newAuctionId, playersArray).catch(err => {
-              console.warn('⚠️ Failed to save photos to IndexedDB for new auction ID:', err);
-            });
-          }
-          
-          // Copy all data from old Firebase path to new path so nothing is lost
-          if (oldAuctionId && oldAuctionId !== newAuctionId) {
-            console.log('📤 Copying auction data from', oldAuctionId, 'to', newAuctionId);
-            // Save the complete state to new Firebase path with new ID
-            const completeState = {
-              ...data,
-              auctionId: newAuctionId,
-              resumedFrom: oldAuctionId,
-              resumedAt: new Date().toISOString(),
-            };
-            saveAuctionStateOnline(newAuctionId, completeState)
-              .then(() => console.log('✅ Auction data successfully copied to Firebase with new ID:', newAuctionId))
-              .catch(err => console.warn('⚠️ Could not copy data to Firebase:', err));
-          }
-          
-          setShowRecovery(false);
-        }}
-        onCancel={() => {
-          console.log('User chose new auction');
-          setShowRecovery(false);
-        }}
-      />
-    );
-  }
-  
+  console.log('App final render - setup:', setup ? 'YES' : 'NO');
   console.log('App final render - setup:', setup ? 'YES' : 'NO');
   if (setup) {
     console.log('Rendering AuctionScreen with players:', setup.players?.length);
