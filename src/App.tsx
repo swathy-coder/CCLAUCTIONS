@@ -297,7 +297,7 @@ function App() {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>ðŸ</div>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🏏</div>
           <h1 style={{ color: '#fff', fontSize: '1.8rem', marginBottom: '0.5rem' }}>CCL Auction 2025</h1>
           <p style={{ color: '#888', marginBottom: '2rem', fontSize: '0.95rem' }}>Enter password to access auctioneer panel</p>
           
@@ -324,7 +324,7 @@ function App() {
           
           {passwordError && (
             <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              âŒ {passwordError}
+              ❌ {passwordError}
             </div>
           )}
           
@@ -343,7 +343,7 @@ function App() {
               transition: 'transform 0.2s',
             }}
           >
-            ðŸ”“ Enter
+            🔓 Enter
           </button>
           
           <p style={{ color: '#666', marginTop: '2rem', fontSize: '0.8rem' }}>
@@ -374,7 +374,7 @@ function App() {
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>ðŸ”„</div>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔄</div>
           <h1 style={{ color: '#fff', fontSize: '1.6rem', marginBottom: '0.5rem' }}>Resume Auction</h1>
           <p style={{ color: '#4caf50', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: 600 }}>
             Auction ID: {auctionIdFromUrl}
@@ -406,7 +406,7 @@ function App() {
           
           {resumePasswordError && (
             <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              âŒ {resumePasswordError}
+              ❌ {resumePasswordError}
             </div>
           )}
           
@@ -425,7 +425,7 @@ function App() {
               marginBottom: '1rem',
             }}
           >
-            â–¶ï¸ Resume Auction
+            ▶️ Resume Auction
           </button>
           
           <button
